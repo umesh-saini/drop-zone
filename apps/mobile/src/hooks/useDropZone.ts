@@ -65,6 +65,16 @@ export async function loadDevices(myCode: string): Promise<void> {
   store.setDevices(devices);
 }
 
+export async function reconnectDropZone(): Promise<void> {
+  const store = useStore.getState();
+  store.setConnected(false);
+  const creds = await dropzone.initialize();
+  store.setDevice(creds.deviceCode, creds.deviceName);
+  await dropzone.connect();
+  await loadDevices(creds.deviceCode);
+  await syncPending();
+}
+
 export async function syncPending(): Promise<void> {
   const store = useStore.getState();
   const pending = await dropzone.getPendingIncoming();

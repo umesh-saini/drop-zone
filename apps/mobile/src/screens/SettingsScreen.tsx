@@ -1,8 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
-import { colors, spacing, fontSize } from '../theme';
+import { Button } from '../components/Button';
+import { colors, spacing, fontSize, radius } from '../theme';
+import { useStore } from '../store';
+import { reconnectDropZone } from '../hooks/useDropZone';
 
 function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
@@ -33,7 +36,25 @@ function Section({
   );
 }
 
+const fmt = (code: string | null) =>
+  code && code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : '--------';
+
 export function SettingsScreen() {
+  const { deviceCode, deviceName, connected } = useStore();
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    try {
+      await reconnectDropZone();
+      Alert.alert('Connected', 'Reconnected to server successfully');
+    } catch (e: any) {
+      Alert.alert('Reconnect failed', e.message);
+    } finally {
+      setReconnecting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -41,21 +62,44 @@ export function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {/* Connection */}
+        <Section icon="link-outline" title="Connection">
+          <View style={styles.connRow}>
+            <View style={styles.connStatus}>
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: connected ? colors.success : colors.mutedForeground },
+                ]}
+              />
+              <Text style={styles.rowValue}>{connected ? 'Connected' : 'Disconnected'}</Text>
+            </View>
+            <Button
+              label={reconnecting ? '...' : 'Reconnect'}
+              icon={<Ionicons name="refresh" size={16} color={colors.primaryForeground} />}
+              style={{ paddingHorizontal: spacing.md }}
+              onPress={handleReconnect}
+            />
+          </View>
+          <Text style={styles.hint}>
+            Connects automatically. Tap Reconnect if you go offline or the server was reset.
+          </Text>
+        </Section>
+
         <Section icon="person-outline" title="Device">
-          <Row label="Name" value="This Phone" />
-          <Row label="Code" value="BDYE-E9BL" />
-          <Row label="Connection" value="Local" />
+          <Row label="Name" value={deviceName || 'Not set'} />
+          <Row label="Code" value={fmt(deviceCode)} />
+          <Row
+            label="Status"
+            value={connected ? 'Online' : 'Offline'}
+            valueColor={connected ? colors.success : colors.mutedForeground}
+          />
         </Section>
 
         <Section icon="shield-checkmark-outline" title="Privacy & Security">
-          <Row label="Encryption" value="AES-256-GCM" valueColor={colors.success} />
+          <Row label="Encryption" value="NaCl secretbox" valueColor={colors.success} />
           <Row label="Key Exchange" value="X25519" />
           <Row label="Zero-knowledge" value="Active" valueColor={colors.success} />
-        </Section>
-
-        <Section icon="wifi-outline" title="Network">
-          <Row label="Local Mode" value="Enabled" valueColor={colors.success} />
-          <Row label="Prefer Local" value="On" />
         </Section>
 
         <Section icon="information-circle-outline" title="About">
@@ -79,4 +123,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: fontSize.sm, color: colors.mutedForeground },
   rowValue: { fontSize: fontSize.sm, color: colors.foreground, fontWeight: '500' },
+  connRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  connStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  hint: { fontSize: fontSize.xs, color: colors.mutedForeground },
 });

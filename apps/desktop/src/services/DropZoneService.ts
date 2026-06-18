@@ -61,27 +61,40 @@ export class DropZoneService {
 
   /**
    * Initialize: load existing credentials or register a new device.
+   * If the cached device no longer exists on the server (e.g. DB was reset),
+   * it automatically re-registers a fresh device.
    */
   async initialize(deviceName?: string): Promise<DeviceCredentials> {
     let creds = await credStore.loadCredentials();
+    let valid = false;
 
     if (creds) {
-      // Existing device — re-authenticate
+      // Existing device — try to re-authenticate
       this.api.setToken(creds.token);
       const me = await this.api.getMe();
-      if (!me.success) {
-        // Token expired — re-login with secret token
+      if (me.success) {
+        valid = true;
+      } else {
+        // Token expired/invalid — try re-login with the secret token
         const login = await this.api.login(creds.deviceCode, creds.secretToken);
         if (login.success && login.data) {
           creds.token = login.data.token;
           this.api.setToken(creds.token);
           await credStore.saveCredentials(creds);
+          valid = true;
         }
       }
-    } else {
-      // New device — generate keys + register
-      const keyPair = generateKeyPair();
-      const name = deviceName || `Desktop ${Math.floor(Math.random() * 1000)}`;
+    }
+
+    if (!valid) {
+      // No creds, or the cached device no longer exists on the server
+      // (e.g. server DB was reset) — register a fresh device.
+      const existingKeys = creds; // reuse keypair if we have one, else generate
+      const keyPair =
+        existingKeys?.publicKey && existingKeys?.secretKey
+          ? { publicKey: existingKeys.publicKey, secretKey: existingKeys.secretKey }
+          : generateKeyPair();
+      const name = deviceName || creds?.deviceName || `Desktop ${Math.floor(Math.random() * 1000)}`;
       const res = await this.api.register({
         deviceName: name,
         deviceType: 'desktop',
@@ -108,8 +121,18 @@ export class DropZoneService {
       await credStore.saveCredentials(creds);
     }
 
-    this.credentials = creds;
-    return creds;
+    this.credentials = creds!;
+    return creds!;
+  }
+
+  /**
+   * Reconnect: re-run initialization + socket connection.
+   * Used by the manual "Reconnect" button and on demand.
+   */
+  async reconnect(): Promise<void> {
+    this.disconnect();
+    await this.initialize();
+    await this.connect();
   }
 
   /**

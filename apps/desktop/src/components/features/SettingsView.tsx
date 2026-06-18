@@ -1,10 +1,28 @@
-import { User, Shield, Wifi, Info } from 'lucide-react';
+import { useState } from 'react';
+import { User, Shield, Wifi, Info, RefreshCw, Plug } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
+import { reconnectDropZone } from '@/hooks/useDropZone';
+import { cn } from '@/lib/utils';
 
 export function SettingsView() {
-  const { deviceCode, deviceName, connectionMode } = useAppStore();
+  const { deviceCode, deviceName, connectionMode, isConnected } = useAppStore();
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    try {
+      await reconnectDropZone();
+      toast.success('Reconnected to server');
+    } catch (err: any) {
+      toast.error('Reconnect failed', { description: err.message });
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col p-6 overflow-y-auto">
@@ -14,6 +32,39 @@ export function SettingsView() {
       </div>
 
       <div className="space-y-4 max-w-2xl">
+        {/* Connection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Plug className="h-4 w-4" />
+              Connection
+            </CardTitle>
+            <CardDescription>
+              Connects automatically. Use Reconnect if you go offline or the server was reset.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'h-2.5 w-2.5 rounded-full',
+                  isConnected ? 'bg-success' : 'bg-muted-foreground'
+                )}
+              />
+              <span className="text-sm">
+                {isConnected ? 'Connected to server' : 'Disconnected'}
+              </span>
+              <Badge variant={isConnected ? 'success' : 'secondary'} className="ml-1">
+                {connectionMode}
+              </Badge>
+            </div>
+            <Button size="sm" onClick={handleReconnect} disabled={reconnecting} className="gap-2">
+              <RefreshCw className={cn('h-4 w-4', reconnecting && 'animate-spin')} />
+              {reconnecting ? 'Connecting…' : 'Reconnect'}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Device Info */}
         <Card>
           <CardHeader>

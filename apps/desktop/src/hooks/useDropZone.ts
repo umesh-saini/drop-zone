@@ -130,6 +130,25 @@ export function useDropZone() {
 }
 
 /**
+ * Manually reconnect: re-register if needed, reconnect socket, refresh state.
+ * Used by the "Reconnect" button in Settings.
+ */
+export async function reconnectDropZone(): Promise<void> {
+  const store = useAppStore.getState();
+  try {
+    store.setConnectionMode('disconnected');
+    const creds = await dropzone.initialize();
+    store.setDevice(creds.deviceCode, creds.deviceName);
+    await dropzone.connect();
+    await syncPairedDevices();
+    await syncPendingRequests();
+  } catch (err: any) {
+    store.setInitError(err.message || 'Reconnect failed');
+    throw err;
+  }
+}
+
+/**
  * Load paired devices from the service into the store.
  */
 export async function syncPairedDevices(): Promise<void> {

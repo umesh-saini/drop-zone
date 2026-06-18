@@ -32,22 +32,33 @@ class MobileDropZone {
 
   async initialize(): Promise<DeviceCredentials> {
     let creds = await storage.loadCredentials();
+    let valid = false;
 
     if (creds) {
       api.setToken(creds.token);
       const me = await api.getMe();
-      if (!me.success) {
+      if (me.success) {
+        valid = true;
+      } else {
         const login = await api.login(creds.deviceCode, creds.secretToken);
         if (login.success && login.data) {
           creds.token = login.data.token;
           api.setToken(creds.token);
           await storage.saveCredentials(creds);
+          valid = true;
         }
       }
-    } else {
-      const kp = generateKeyPair();
+    }
+
+    if (!valid) {
+      // No creds, or the cached device no longer exists on the server
+      // (e.g. server DB was reset) — register a fresh device.
+      const kp =
+        creds?.publicKey && creds?.secretKey
+          ? { publicKey: creds.publicKey, secretKey: creds.secretKey }
+          : generateKeyPair();
       const res = await api.register({
-        deviceName: `Phone ${Math.floor(Math.random() * 1000)}`,
+        deviceName: creds?.deviceName || `Phone ${Math.floor(Math.random() * 1000)}`,
         deviceType: 'mobile',
         platform: 'android',
         publicKey: kp.publicKey,
@@ -67,8 +78,14 @@ class MobileDropZone {
       await storage.saveCredentials(creds);
     }
 
-    this.credentials = creds;
-    return creds;
+    this.credentials = creds!;
+    return creds!;
+  }
+
+  async reconnect(): Promise<void> {
+    this.disconnect();
+    await this.initialize();
+    await this.connect();
   }
 
   async connect(): Promise<void> {
