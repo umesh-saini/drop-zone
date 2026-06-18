@@ -20,7 +20,7 @@ export class ExpoFileAdapter implements FileAdapter {
 
       if (result.canceled || !result.assets) return [];
 
-      return result.assets.map((asset) => ({
+      return result.assets.map((asset: any) => ({
         name: asset.name,
         size: asset.size || 0,
         type: asset.mimeType || 'application/octet-stream',
@@ -33,7 +33,7 @@ export class ExpoFileAdapter implements FileAdapter {
   }
 
   async readChunk(filePath: string, offset: number, length: number): Promise<Uint8Array> {
-    const FileSystem = await import('expo-file-system');
+    const FileSystem = await import('expo-file-system/legacy');
     // expo-file-system readAsStringAsync supports position/length
     const base64Data = await FileSystem.readAsStringAsync(filePath, {
       encoding: FileSystem.EncodingType.Base64,
@@ -44,7 +44,7 @@ export class ExpoFileAdapter implements FileAdapter {
   }
 
   async getFileSize(filePath: string): Promise<number> {
-    const FileSystem = await import('expo-file-system');
+    const FileSystem = await import('expo-file-system/legacy');
     const info = await FileSystem.getInfoAsync(filePath);
     if (info.exists && 'size' in info) {
       return info.size || 0;
@@ -53,7 +53,7 @@ export class ExpoFileAdapter implements FileAdapter {
   }
 
   async writeChunk(filePath: string, offset: number, data: Uint8Array): Promise<void> {
-    const FileSystem = await import('expo-file-system');
+    const FileSystem = await import('expo-file-system/legacy');
     const base64 = uint8ArrayToBase64(data);
 
     if (offset === 0) {
@@ -78,7 +78,7 @@ export class ExpoFileAdapter implements FileAdapter {
   }
 
   async createFile(filePath: string, _size: number): Promise<void> {
-    const FileSystem = await import('expo-file-system');
+    const FileSystem = await import('expo-file-system/legacy');
     await FileSystem.writeAsStringAsync(filePath, '', {
       encoding: FileSystem.EncodingType.UTF8,
     });
@@ -86,7 +86,7 @@ export class ExpoFileAdapter implements FileAdapter {
 
   async getSaveDirectory(): Promise<string> {
     if (this.saveDir) return this.saveDir;
-    const FileSystem = await import('expo-file-system');
+    const FileSystem = await import('expo-file-system/legacy');
     this.saveDir = FileSystem.documentDirectory + 'dropzone/';
 
     // Ensure directory exists
@@ -105,7 +105,7 @@ export class ExpoFileAdapter implements FileAdapter {
 
   async deleteFile(filePath: string): Promise<void> {
     try {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       await FileSystem.deleteAsync(filePath, { idempotent: true });
     } catch {
       // Silently ignore
@@ -114,7 +114,7 @@ export class ExpoFileAdapter implements FileAdapter {
 
   async fileExists(filePath: string): Promise<boolean> {
     try {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       const info = await FileSystem.getInfoAsync(filePath);
       return info.exists;
     } catch {

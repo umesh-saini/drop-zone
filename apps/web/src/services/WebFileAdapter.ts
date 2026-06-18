@@ -113,7 +113,7 @@ export class WebFileAdapter implements FileAdapter {
     const data = this.fileStore.get(filePath);
     if (!data) return;
 
-    const blob = new Blob([data]);
+    const blob = new Blob([data as BlobPart]);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

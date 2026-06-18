@@ -72,17 +72,17 @@ export class ExpoClipboardAdapter implements ClipboardAdapter {
     try {
       const Clipboard = await import('expo-clipboard');
       if (Clipboard.addClipboardListener) {
-        this.subscription = Clipboard.addClipboardListener(
-          (event: { contentTypes: string[]; content: string }) => {
-            if (event.content && event.content !== this.lastContent) {
-              this.lastContent = event.content;
-              onChange({
-                content: event.content,
-                timestamp: Date.now(),
-              });
-            }
+        this.subscription = Clipboard.addClipboardListener(async () => {
+          // Newer expo-clipboard events don't include content — fetch it
+          const content = await Clipboard.getStringAsync();
+          if (content && content !== this.lastContent) {
+            this.lastContent = content;
+            onChange({
+              content,
+              timestamp: Date.now(),
+            });
           }
-        );
+        });
       }
     } catch {
       // Event listener not available, polling handles it

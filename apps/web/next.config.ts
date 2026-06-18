@@ -1,7 +1,13 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Transpile the shared workspace package (TypeScript source)
+  transpilePackages: ['@dropzone/shared'],
+  // Set the workspace root to silence multi-lockfile warning
+  turbopack: {
+    root: path.join(__dirname, '../..'),
+  },
 };
 
 export default nextConfig;
