@@ -12,3 +12,6 @@ export * from './validators';
 
 // Clipboard
 export * from './clipboard';
+
+// File Transfer
+export * from './file-transfer';
