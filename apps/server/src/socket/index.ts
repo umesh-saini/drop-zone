@@ -179,6 +179,7 @@ async function handleClipboardSync(
         content: data.content,
         fromDevice: fromDeviceCode,
         timestamp: data.timestamp,
+        pairingId: pairing._id.toString(),
       });
     }
   }

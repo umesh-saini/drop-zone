@@ -2,12 +2,23 @@
  * Message payload types for socket events
  */
 
-// Clipboard message
-export interface ClipboardMessage {
-  deviceCode: string;
+// Clipboard messages
+export interface ClipboardSyncMessage {
+  /** Encrypted content (base64 encoded ciphertext) — server relays as-is */
   content: string;
+  /** Unix timestamp ms when clipboard was copied */
   timestamp: number;
-  encrypted: boolean;
+}
+
+export interface ClipboardUpdateMessage {
+  /** Encrypted content (base64 encoded ciphertext) */
+  content: string;
+  /** Device code of sender */
+  fromDevice: string;
+  /** Unix timestamp ms */
+  timestamp: number;
+  /** Pairing ID — used by receiver to select correct decryption key */
+  pairingId: string;
 }
 
 // File transfer messages

@@ -1,11 +1,14 @@
 // Types
-export * from "./types";
+export * from './types';
 
 // Utils
-export * from "./utils";
+export * from './utils';
 
 // Constants
-export * from "./constants";
+export * from './constants';
 
 // Validators
-export * from "./validators";
+export * from './validators';
+
+// Clipboard
+export * from './clipboard';
