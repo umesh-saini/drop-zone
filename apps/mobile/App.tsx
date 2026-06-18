@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  SafeAreaView,
-  Platform,
-  StatusBar as RNStatusBar,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { DevicesScreen } from './src/screens/DevicesScreen';
 import { ClipboardScreen } from './src/screens/ClipboardScreen';
@@ -28,9 +20,10 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
 
-export default function App() {
+function AppContent() {
   const [tab, setTab] = useState<Tab>('devices');
   const { initializing, connected } = useStore();
+  const insets = useSafeAreaInsets();
   useDropZone();
 
   const renderScreen = () => {
@@ -48,16 +41,16 @@ export default function App() {
 
   if (initializing) {
     return (
-      <SafeAreaView style={[styles.root, styles.center]}>
+      <View style={[styles.root, styles.center, { paddingTop: insets.top }]}>
         <StatusBar style="light" />
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Connecting to DropZone…</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar style="light" />
 
       {/* Top brand bar */}
@@ -89,8 +82,8 @@ export default function App() {
       {/* Active screen */}
       <View style={styles.screen}>{renderScreen()}</View>
 
-      {/* Bottom tab bar */}
-      <View style={styles.tabBar}>
+      {/* Bottom tab bar — padded for the system navigation bar */}
+      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
@@ -112,7 +105,15 @@ export default function App() {
           );
         })}
       </View>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   );
 }
 
@@ -120,7 +121,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
   center: { justifyContent: 'center', alignItems: 'center', gap: spacing.md },
   loadingText: { color: colors.mutedForeground, fontSize: fontSize.sm },
@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.card,
-    paddingBottom: spacing.sm,
     paddingTop: spacing.sm,
   },
   tab: { flex: 1, alignItems: 'center', gap: 2 },

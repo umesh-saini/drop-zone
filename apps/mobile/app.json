@@ -1,13 +1,16 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "DropZone",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "DropZone uses the camera to scan QR codes for pairing devices."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +19,19 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DropZone uses the camera to scan QR codes for pairing devices."
+        }
+      ]
+    ]
   }
 }

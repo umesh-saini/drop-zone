@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  TextInput,
+  Alert,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -8,6 +17,8 @@ import { colors, spacing, fontSize, radius } from '../theme';
 import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
 import { loadDevices } from '../hooks/useDropZone';
+import { QRScanner } from '../components/QRScanner';
+import { decodeQRData } from '../lib/qr';
 
 const iconFor = (type: string) =>
   type === 'mobile'
@@ -21,27 +32,46 @@ const fmt = (code: string) => (code.length === 8 ? `${code.slice(0, 4)}-${code.s
 export function DevicesScreen() {
   const { devices, deviceCode, deviceName } = useStore();
   const [modal, setModal] = useState(false);
+  const [pairMode, setPairMode] = useState<'scan' | 'code'>('scan');
   const [target, setTarget] = useState('');
   const [pairing, setPairing] = useState(false);
 
-  const handlePair = async () => {
-    const code = target.replace(/-/g, '').toUpperCase().trim();
-    if (code.length !== 8) {
+  const closeModal = () => {
+    setModal(false);
+    setTarget('');
+    setPairMode('scan');
+  };
+
+  const sendPairRequest = async (code: string) => {
+    const clean = code.replace(/-/g, '').toUpperCase().trim();
+    if (clean.length !== 8) {
       Alert.alert('Invalid code', 'Enter an 8-character device code');
       return;
     }
     setPairing(true);
     try {
-      await dropzone.pairWithDevice(code);
+      await dropzone.pairWithDevice(clean);
       Alert.alert('Request sent', 'Waiting for the other device to accept');
-      setModal(false);
-      setTarget('');
+      closeModal();
       if (deviceCode) await loadDevices(deviceCode);
     } catch (e: any) {
       Alert.alert('Pairing failed', e.message);
     } finally {
       setPairing(false);
     }
+  };
+
+  const handleScanned = (data: string) => {
+    const decoded = decodeQRData(data);
+    if (!decoded) {
+      Alert.alert('Invalid QR', 'That QR code is not a valid or current DropZone pairing code');
+      return;
+    }
+    if (decoded.code === deviceCode) {
+      Alert.alert('Cannot pair', "That's this device's own code");
+      return;
+    }
+    sendPairRequest(decoded.code);
   };
 
   return (
@@ -108,34 +138,74 @@ export function DevicesScreen() {
       </ScrollView>
 
       {/* Pair modal */}
-      <Modal
-        visible={modal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModal(false)}
-      >
+      <Modal visible={modal} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Pair a Device</Text>
-            <Text style={styles.modalSubtitle}>Enter the other device's code</Text>
-            <TextInput
-              value={target}
-              onChangeText={setTarget}
-              placeholder="XXXX-XXXX"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="characters"
-              maxLength={9}
-              style={styles.input}
-            />
-            <View style={styles.modalActions}>
-              <Button
-                label="Cancel"
-                variant="outline"
-                style={{ flex: 1 }}
-                onPress={() => setModal(false)}
-              />
-              <Button label={pairing ? '...' : 'Pair'} style={{ flex: 1 }} onPress={handlePair} />
+
+            {/* Mode toggle */}
+            <View style={styles.toggle}>
+              <Pressable
+                style={[styles.toggleBtn, pairMode === 'scan' && styles.toggleActive]}
+                onPress={() => setPairMode('scan')}
+              >
+                <Ionicons
+                  name="qr-code-outline"
+                  size={16}
+                  color={pairMode === 'scan' ? colors.primaryForeground : colors.mutedForeground}
+                />
+                <Text style={[styles.toggleText, pairMode === 'scan' && styles.toggleTextActive]}>
+                  Scan QR
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.toggleBtn, pairMode === 'code' && styles.toggleActive]}
+                onPress={() => setPairMode('code')}
+              >
+                <Ionicons
+                  name="keypad-outline"
+                  size={16}
+                  color={pairMode === 'code' ? colors.primaryForeground : colors.mutedForeground}
+                />
+                <Text style={[styles.toggleText, pairMode === 'code' && styles.toggleTextActive]}>
+                  Enter Code
+                </Text>
+              </Pressable>
             </View>
+
+            {pairMode === 'scan' ? (
+              <>
+                <Text style={styles.modalSubtitle}>Scan the QR code shown on the other device</Text>
+                <QRScanner onScanned={handleScanned} />
+                <Button label="Cancel" variant="outline" onPress={closeModal} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalSubtitle}>Enter the other device's code</Text>
+                <TextInput
+                  value={target}
+                  onChangeText={setTarget}
+                  placeholder="XXXX-XXXX"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="characters"
+                  maxLength={9}
+                  style={styles.input}
+                />
+                <View style={styles.modalActions}>
+                  <Button
+                    label="Cancel"
+                    variant="outline"
+                    style={{ flex: 1 }}
+                    onPress={closeModal}
+                  />
+                  <Button
+                    label={pairing ? '...' : 'Pair'}
+                    style={{ flex: 1 }}
+                    onPress={() => sendPairRequest(target)}
+                  />
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -209,6 +279,26 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground },
   modalSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  toggle: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.xs,
+  },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  toggleActive: { backgroundColor: colors.primary },
+  toggleText: { fontSize: fontSize.sm, color: colors.mutedForeground, fontWeight: '500' },
+  toggleTextActive: { color: colors.primaryForeground },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
