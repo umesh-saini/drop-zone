@@ -134,6 +134,29 @@ export function setupSocketHandlers(io: Server): void {
       });
     });
 
+    // Remote file access: request from browser to source device
+    socket.on('remote:request', async (data: { toDevice: string; request: any }) => {
+      const canAccess = await checkPairedPermission(deviceCode, data.toDevice, 'file_access_read');
+      if (!canAccess) {
+        socket.emit('error', { message: 'Remote file access permission denied' });
+        return;
+      }
+      // Relay encrypted request to source device
+      io.to(`device:${data.toDevice}`).emit('remote:request', {
+        fromDevice: deviceCode,
+        request: data.request,
+      });
+    });
+
+    // Remote file access: response from source device back to browser
+    socket.on('remote:response', async (data: { toDevice: string; response: any }) => {
+      // Relay response back to requesting device
+      io.to(`device:${data.toDevice}`).emit('remote:response', {
+        fromDevice: deviceCode,
+        response: data.response,
+      });
+    });
+
     // Heartbeat / keep alive
     socket.on('heartbeat', async () => {
       await sessionService.updateSessionActivity(deviceCode);

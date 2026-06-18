@@ -15,3 +15,6 @@ export * from './clipboard';
 
 // File Transfer
 export * from './file-transfer';
+
+// Remote File Access
+export * from './remote-access';
