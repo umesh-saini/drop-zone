@@ -394,6 +394,18 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Secure storage audit per platform (documented in KeyStorageAdapter)
 - [ ] Penetration testing (manual — out of scope for automated build)
 
+### Phase 10.5: Backend Integration (Wiring) ✅
+
+- [x] Environment config (.env + .env.example for all 4 apps)
+- [x] Shared client SDK (ApiClient + RealtimeClient in @dropzone/shared)
+- [x] Unified cross-platform crypto (NaCl secretbox — works in RN too)
+- [x] Desktop: auto-register, socket connect, live data, pairing modal (QR + code),
+      live clipboard sync, file send/receive with progress
+- [x] Web: dashboard with live device list, pairing, live clipboard receive
+- [x] Mobile: register, socket, pairing modal, live status, clipboard push/receive
+- [x] Verified end-to-end: register → pair → key exchange → encrypted clipboard
+- [x] Verified cross-platform E2E (mobile ↔ desktop ↔ web)
+
 ### Phase 11: Advanced Features (Future)
 
 - [ ] Notification mirroring
@@ -402,6 +414,8 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [ ] Multi-device groups (more than 2 devices paired)
 - [ ] Shared clipboard history
 - [ ] Browser extension for web clipboard
+- [ ] Mobile file send UI (picker wired, UI button pending)
+- [ ] Local mode discovery native modules (desktop Rust UDP, mobile react-native-udp)
 
 ---
 
