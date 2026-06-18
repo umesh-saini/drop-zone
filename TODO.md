@@ -406,16 +406,133 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Verified end-to-end: register → pair → key exchange → encrypted clipboard
 - [x] Verified cross-platform E2E (mobile ↔ desktop ↔ web)
 
-### Phase 11: Advanced Features (Future)
+---
 
-- [ ] Notification mirroring
+## 🚧 REMAINING WORK (Prioritized)
+
+> Status after integration: devices register, connect, pair, and sync clipboard
+> end-to-end. The items below are what's left to make it a polished, daily-driver app.
+> Ordered by priority — P0 first.
+
+---
+
+### Phase 11: Unpair / Disconnect (P0 — critical) ⬅️ NEXT
+
+> Once paired there is currently no way to disconnect. This is the most important gap.
+
+- [ ] Server: `DELETE /api/pairings/:id` (or reuse revoke) — fully remove pairing + permissions
+- [ ] Server: emit `pairing:revoked` to the other device so it updates live
+- [ ] Desktop: "Unpair" action on each device row (the `...` menu) with confirm dialog
+- [ ] Mobile: "Unpair" action (long-press or detail sheet) with confirm
+- [ ] Both: on unpair, delete stored shared secret for that pairing
+- [ ] Both: handle incoming `pairing:revoked` — remove device from list + toast
+- [ ] Edge case: clean up in-flight transfers / clipboard targets for that peer
+
+### Phase 12: Permission Management & Enforcement (P1)
+
+> Permissions exist in the DB but the UI doesn't let users change them and the
+> client doesn't fully respect them. Make them real and editable from both sides.
+
+- [ ] Desktop: per-device Permissions screen/sheet
+  - [ ] Toggle each permission: clipboard send/receive, file send/receive,
+        remote file read, remote file write
+  - [ ] Show direction clearly (This device → Other / Other → This device)
+  - [ ] Live save via `PUT /api/pairings/:id/permissions`
+- [ ] Mobile: same permissions UI
+- [ ] Client-side enforcement: don't send clipboard/files if permission not granted
+- [ ] Server-side enforcement audit: verify every relay checks permission (clipboard, file, remote)
+- [ ] Show "You don't have permission" states in UI when an action is blocked
+- [ ] Default permission template on pair (clipboard both ways on, file access off) — review
+- [ ] Re-fetch permissions when the other device changes them (socket `permission:update`)
+
+### Phase 13: Mobile — Replace Dummy Data with Real (P1)
+
+> Mobile Files, Clipboard, and Settings still show placeholder content in places.
+
+- [ ] Files screen: wire real transfers from store (currently static demo rows)
+- [ ] Files screen: add "Send File" with expo-document-picker → TransferManager
+- [ ] Files screen: incoming file accept/reject prompt + progress bars
+- [ ] Clipboard screen: ensure history is fully from store (no demo entries)
+- [ ] Settings: all rows reflect real state (done for some — audit all)
+- [ ] Remove any remaining hardcoded device/clip/file mock arrays
+
+### Phase 14: Global Clipboard Capture (P1)
+
+> "Anything the user copies — Ctrl+C, right-click copy, a UI button — should sync."
+
+- [ ] Desktop (Tauri): global clipboard watcher running even when window unfocused
+  - [ ] Use Tauri clipboard polling in Rust side for reliability
+  - [ ] Optional: global shortcut to push clipboard on demand
+- [ ] Mobile: capture clipboard on app foreground + manual "Push" (auto-capture
+      in background is OS-restricted — document the limitation)
+- [ ] Debounce + dedupe so the same copy isn't synced twice
+- [ ] Respect clipboard permission per direction
+- [ ] Support more clipboard types later (images, files) — text first
+
+### Phase 15: Background Service & Efficient Sync (P2)
+
+> Both apps should keep syncing in the background, lightweight on battery/CPU.
+
+- [ ] Desktop: run in system tray, keep socket alive when window closed
+  - [ ] Tray icon + menu (Show, Pause sync, Quit)
+  - [ ] Autostart on login (Tauri autostart plugin)
+  - [ ] Minimize-to-tray instead of quit
+- [ ] Mobile: background clipboard/file sync within OS limits
+  - [ ] expo-task-manager / background fetch for periodic sync
+  - [ ] Foreground service notification (Android) while connected
+  - [ ] Reconnect socket on app resume
+- [ ] Tune heartbeat / reconnect backoff for battery efficiency
+- [ ] Pause/resume sync toggle
+
+### Phase 16: Remote File Explorer (full OS-like browser) (P2)
+
+> Files tab should show the OTHER device's file system like a normal file manager.
+
+- [ ] Desktop host: expose sandboxed folders, real directory listing (RemoteAccessHost exists — wire UI)
+- [ ] Mobile host: expose accessible folders via expo-file-system
+- [ ] Explorer UI (both apps): breadcrumb path, folder navigation, file list,
+      icons by type, size, modified date, back/up navigation
+- [ ] Open/preview files (images, text, PDF) inline
+- [ ] Download file → existing TransferManager flow
+- [ ] Edit file (if `file_access_write` granted) → upload back
+- [ ] Delete file (if `file_access_write` granted) → confirm
+- [ ] Show "You don't have permission" when read/write not allowed
+- [ ] Folder picker in Settings to choose which folders are shared
+
+### Phase 17: Additional Recommendations (my suggestions)
+
+> Things I think are needed for a solid product.
+
+- [ ] File transfer accept/reject prompt (currently auto-accepts incoming files)
+- [ ] Transfer controls in UI: cancel, pause, resume, retry
+- [ ] Device rename (PATCH /devices/me) from Settings
+- [ ] "Reset this device" / logout (clear creds + re-register)
+- [ ] Real per-device online status (currently only updates via events — sync on load)
+- [ ] Offline queue: buffer clipboard/files when peer offline, deliver on reconnect
+- [ ] Native notifications: clipboard received, file received, pairing request
+- [ ] Clipboard history persistence (survive restart) + clear history
+- [ ] Deep-link pairing: `dropzone://pair/...` opens app and pre-fills
+- [ ] Multi-file selection + batch send
+- [ ] First-run onboarding: name your device, permission primer
+- [ ] Web app: enable file send (currently shows "coming soon")
+- [ ] Error/empty/loading states audit across all screens
+- [ ] Reconnect with exponential backoff + connection lost banner
+- [ ] Automated tests (unit for crypto/transfer, integration for pairing flow)
+- [ ] Local mode native modules (desktop Rust UDP, mobile react-native-udp)
+- [ ] Light theme implementation (tokens ready, wire the toggle)
+
+---
+
+## Phase X: Advanced Features (Future / Nice-to-have)
+
+- [ ] Notification mirroring (phone notifications on desktop)
 - [ ] SMS relay (Android → Desktop)
 - [ ] Media streaming (preview photos/videos from phone)
 - [ ] Multi-device groups (more than 2 devices paired)
-- [ ] Shared clipboard history
+- [ ] Shared clipboard history across all devices
 - [ ] Browser extension for web clipboard
-- [ ] Mobile file send UI (picker wired, UI button pending)
-- [ ] Local mode discovery native modules (desktop Rust UDP, mobile react-native-udp)
+- [ ] End-to-end tests + CI pipeline
+- [ ] Production deployment (server hosting, app store / release builds)
 
 ---
 
