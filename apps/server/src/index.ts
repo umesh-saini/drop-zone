@@ -57,6 +57,7 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 
 // --- Socket.io ---
+app.set('io', io);
 setupSocketHandlers(io);
 
 // --- Session cleanup (every 5 minutes) ---

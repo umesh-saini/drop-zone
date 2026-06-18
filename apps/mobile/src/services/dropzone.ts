@@ -9,6 +9,7 @@ export interface PairingInfo {
   pairingId: string;
   deviceACode: string;
   deviceBCode: string;
+  initiatedBy: string;
   status: string;
 }
 
@@ -26,6 +27,7 @@ class MobileDropZone {
     onClipboardReceived?: (content: string, fromDevice: string) => void;
     onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
     onPairingRequest?: (fromDevice: string) => void;
+    onPairingAccepted?: () => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -93,6 +95,7 @@ class MobileDropZone {
     );
     this.socket.on('clipboard:update', (d: any) => this.handleClipboard(d));
     this.socket.on('pairing:request', (d: any) => this.callbacks.onPairingRequest?.(d.fromDevice));
+    this.socket.on('pairing:accepted', () => this.callbacks.onPairingAccepted?.());
 
     await this.refreshPairings();
   }
@@ -149,6 +152,7 @@ class MobileDropZone {
   async pairWithDevice(targetCode: string): Promise<PairingInfo> {
     const res = await api.requestPairing(targetCode);
     if (!res.success || !res.data) throw new Error(res.error || 'Pairing failed');
+    this.socket?.emit('pairing:request', { targetDeviceCode: targetCode });
     return res.data;
   }
 
@@ -156,6 +160,19 @@ class MobileDropZone {
     const res = await api.acceptPairing(pairingId);
     if (!res.success) throw new Error(res.error || 'Accept failed');
     await this.refreshPairings();
+  }
+
+  async rejectPairing(pairingId: string): Promise<void> {
+    const res = await api.rejectPairing(pairingId);
+    if (!res.success) throw new Error(res.error || 'Reject failed');
+  }
+
+  async getPendingIncoming(): Promise<{ pairingId: string; fromDeviceCode: string }[]> {
+    const res = await api.getPendingPairings();
+    if (!res.success || !res.data) return [];
+    return res.data
+      .filter((p: PairingInfo) => p.initiatedBy !== this.credentials!.deviceCode)
+      .map((p: PairingInfo) => ({ pairingId: p.pairingId, fromDeviceCode: p.initiatedBy }));
   }
 
   getCredentials(): DeviceCredentials | null {

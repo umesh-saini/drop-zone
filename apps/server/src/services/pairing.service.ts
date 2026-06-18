@@ -41,6 +41,7 @@ export async function createPairingRequest(
   const pairing = await Pairing.create({
     deviceACode: normalA,
     deviceBCode: normalB,
+    initiatedBy: deviceACode,
     status: 'pending',
   });
 
@@ -59,6 +60,11 @@ export async function acceptPairing(pairingId: string, deviceCode: string): Prom
   // Verify the accepting device is part of this pairing
   if (pairing.deviceACode !== deviceCode && pairing.deviceBCode !== deviceCode) {
     throw new Error('Device is not part of this pairing');
+  }
+
+  // The initiator cannot accept their own request — only the recipient can
+  if (pairing.initiatedBy === deviceCode) {
+    throw new Error('Cannot accept your own pairing request');
   }
 
   pairing.status = 'active';

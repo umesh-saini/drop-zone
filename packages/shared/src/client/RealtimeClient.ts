@@ -37,7 +37,8 @@ export interface RealtimeHandlers {
     fromDevice: string;
   }) => void;
   onFileComplete?: (data: { fileId: string; fromDevice: string }) => void;
-  onPairingRequest?: (data: { fromDevice: string; timestamp: number }) => void;
+  onPairingRequest?: (data: { pairingId?: string; fromDevice: string; timestamp: number }) => void;
+  onPairingAccepted?: (data: { pairingId: string; acceptedBy: string }) => void;
   onRemoteRequest?: (data: { fromDevice: string; request: any }) => void;
   onRemoteResponse?: (data: { fromDevice: string; response: any }) => void;
   onError?: (data: { message: string }) => void;
@@ -84,6 +85,7 @@ export class RealtimeClient {
     this.socket.on('file:complete', (data: any) => this.handlers.onFileComplete?.(data));
 
     this.socket.on('pairing:request', (data: any) => this.handlers.onPairingRequest?.(data));
+    this.socket.on('pairing:accepted', (data: any) => this.handlers.onPairingAccepted?.(data));
 
     this.socket.on('remote:request', (data: any) => this.handlers.onRemoteRequest?.(data));
     this.socket.on('remote:response', (data: any) => this.handlers.onRemoteResponse?.(data));

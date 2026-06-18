@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Monitor, Smartphone, Globe, Plus, MoreVertical, Wifi } from 'lucide-react';
+import { Monitor, Smartphone, Globe, Plus, MoreVertical, Wifi, Check, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
 import { cn } from '@/lib/utils';
 import { PairingModal } from './PairingModal';
+import { dropzone } from '@/services/DropZoneService';
+import { syncPairedDevices, syncPendingRequests } from '@/hooks/useDropZone';
 
 const deviceIcons = {
   desktop: Monitor,
@@ -14,8 +17,36 @@ const deviceIcons = {
 };
 
 export function DevicesView() {
-  const { pairedDevices, deviceCode, deviceName } = useAppStore();
+  const { pairedDevices, pendingRequests, deviceCode, deviceName } = useAppStore();
   const [pairingOpen, setPairingOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleAccept = async (pairingId: string) => {
+    setBusy(pairingId);
+    try {
+      await dropzone.acceptPairing(pairingId);
+      await syncPendingRequests();
+      await syncPairedDevices();
+      toast.success('Device paired');
+    } catch (err: any) {
+      toast.error('Failed to accept', { description: err.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleReject = async (pairingId: string) => {
+    setBusy(pairingId);
+    try {
+      await dropzone.rejectPairing(pairingId);
+      await syncPendingRequests();
+      toast('Request rejected');
+    } catch (err: any) {
+      toast.error('Failed to reject', { description: err.message });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col p-6">
@@ -33,6 +64,55 @@ export function DevicesView() {
           Pair Device
         </Button>
       </div>
+
+      {/* Incoming pairing requests */}
+      {pendingRequests.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Incoming Requests
+          </p>
+          {pendingRequests.map((req) => {
+            const Icon = deviceIcons[req.fromDeviceType] || Monitor;
+            return (
+              <Card key={req.pairingId} className="border-primary/40 bg-primary/5">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{req.fromDeviceName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      wants to pair •{' '}
+                      <span className="font-mono">
+                        {req.fromDeviceCode.slice(0, 4)}-{req.fromDeviceCode.slice(4)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={busy === req.pairingId}
+                      onClick={() => handleAccept(req.pairingId)}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={busy === req.pairingId}
+                      onClick={() => handleReject(req.pairingId)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* This device */}
       <Card className="mb-4 border-primary/30">

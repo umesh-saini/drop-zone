@@ -41,6 +41,7 @@ export class DropZoneService {
     onClipboardReceived?: (content: string, fromDevice: string) => void;
     onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
     onPairingRequest?: (fromDevice: string) => void;
+    onPairingAccepted?: () => void;
     onClipboardSent?: (content: string) => void;
     onTransferProgress?: (progress: TransferProgress) => void;
     onFileOffer?: (offer: {
@@ -131,6 +132,7 @@ export class DropZoneService {
       onDeviceOffline: (code) => this.callbacks.onDeviceStatusChange?.(code, false),
       onClipboardUpdate: (data) => this.handleIncomingClipboard(data),
       onPairingRequest: (data) => this.callbacks.onPairingRequest?.(data.fromDevice),
+      onPairingAccepted: () => this.callbacks.onPairingAccepted?.(),
       onFileOffer: (data) => {
         this.transferManager?.handleOffer(
           { ...data, toDevice: this.credentials!.deviceCode, totalChunks: 0, chunkSize: 0 } as any,
@@ -305,6 +307,9 @@ export class DropZoneService {
   async pairWithDevice(targetCode: string): Promise<PairingInfo> {
     const res = await this.api.requestPairing(targetCode);
     if (!res.success || !res.data) throw new Error(res.error || 'Pairing failed');
+    // Also notify the target in real time (server already emits, this is a backup
+    // for cases where the HTTP emit path and socket differ)
+    this.realtime?.notifyPairingRequest(targetCode);
     return res.data;
   }
 
@@ -312,6 +317,22 @@ export class DropZoneService {
     const res = await this.api.acceptPairing(pairingId);
     if (!res.success) throw new Error(res.error || 'Accept failed');
     await this.refreshPairings();
+  }
+
+  async rejectPairing(pairingId: string): Promise<void> {
+    const res = await this.api.rejectPairing(pairingId);
+    if (!res.success) throw new Error(res.error || 'Reject failed');
+  }
+
+  /**
+   * Get pending incoming pairing requests (where this device is NOT the initiator).
+   */
+  async getPendingIncoming(): Promise<{ pairingId: string; fromDeviceCode: string }[]> {
+    const res = await this.api.getPendingPairings();
+    if (!res.success || !res.data) return [];
+    return res.data
+      .filter((p) => p.initiatedBy !== this.credentials!.deviceCode)
+      .map((p) => ({ pairingId: p.pairingId, fromDeviceCode: p.initiatedBy }));
   }
 
   getCredentials(): DeviceCredentials | null {

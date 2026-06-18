@@ -16,7 +16,7 @@ import { Button } from '../components/Button';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
-import { loadDevices } from '../hooks/useDropZone';
+import { loadDevices, syncPending } from '../hooks/useDropZone';
 import { QRScanner } from '../components/QRScanner';
 import { decodeQRData } from '../lib/qr';
 
@@ -30,11 +30,38 @@ const iconFor = (type: string) =>
 const fmt = (code: string) => (code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code);
 
 export function DevicesScreen() {
-  const { devices, deviceCode, deviceName } = useStore();
+  const { devices, deviceCode, deviceName, pendingRequests } = useStore();
   const [modal, setModal] = useState(false);
   const [pairMode, setPairMode] = useState<'scan' | 'code'>('scan');
   const [target, setTarget] = useState('');
   const [pairing, setPairing] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleAccept = async (pairingId: string) => {
+    setBusy(pairingId);
+    try {
+      await dropzone.acceptPairing(pairingId);
+      await syncPending();
+      if (deviceCode) await loadDevices(deviceCode);
+      Alert.alert('Paired', 'Device connected successfully');
+    } catch (e: any) {
+      Alert.alert('Failed', e.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleReject = async (pairingId: string) => {
+    setBusy(pairingId);
+    try {
+      await dropzone.rejectPairing(pairingId);
+      await syncPending();
+    } catch (e: any) {
+      Alert.alert('Failed', e.message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const closeModal = () => {
     setModal(false);
@@ -101,6 +128,40 @@ export function DevicesScreen() {
           </View>
           <Badge label="This device" variant="success" />
         </Card>
+
+        {/* Incoming pairing requests */}
+        {pendingRequests.length > 0 && (
+          <View style={styles.pendingSection}>
+            <Text style={styles.pendingLabel}>INCOMING REQUESTS</Text>
+            {pendingRequests.map((req) => (
+              <Card key={req.pairingId} style={[styles.deviceCard, styles.pendingCard]}>
+                <View style={styles.iconBox}>
+                  <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.deviceInfo}>
+                  <Text style={styles.deviceName}>{req.fromDeviceName}</Text>
+                  <Text style={styles.deviceCode}>wants to pair • {fmt(req.fromDeviceCode)}</Text>
+                </View>
+                <View style={styles.reqActions}>
+                  <Pressable
+                    style={[styles.reqBtn, { backgroundColor: colors.primary }]}
+                    disabled={busy === req.pairingId}
+                    onPress={() => handleAccept(req.pairingId)}
+                  >
+                    <Ionicons name="checkmark" size={18} color={colors.primaryForeground} />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.reqBtn, { borderWidth: 1, borderColor: colors.border }]}
+                    disabled={busy === req.pairingId}
+                    onPress={() => handleReject(req.pairingId)}
+                  >
+                    <Ionicons name="close" size={18} color={colors.foreground} />
+                  </Pressable>
+                </View>
+              </Card>
+            ))}
+          </View>
+        )}
 
         {devices.length === 0 ? (
           <View style={styles.empty}>
@@ -261,6 +322,22 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
+  pendingSection: { gap: spacing.sm },
+  pendingLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+    color: colors.mutedForeground,
+    letterSpacing: 1,
+  },
+  pendingCard: { borderColor: colors.primary + '66', backgroundColor: colors.primary + '0d' },
+  reqActions: { flexDirection: 'row', gap: spacing.sm },
+  reqBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
   emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground },
   modalOverlay: {

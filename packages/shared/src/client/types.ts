@@ -37,6 +37,7 @@ export interface PairingInfo {
   pairingId: string;
   deviceACode: string;
   deviceBCode: string;
+  initiatedBy: string;
   status: 'pending' | 'active' | 'revoked';
   pairedAt?: string;
 }

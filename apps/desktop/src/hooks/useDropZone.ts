@@ -63,8 +63,13 @@ export function useDropZone() {
           },
           onPairingRequest: (fromDevice) => {
             toast(`Pairing request from ${fromDevice.slice(0, 4)}`, {
-              description: 'Open Devices to accept',
+              description: 'Review it in Devices',
             });
+            syncPendingRequests();
+          },
+          onPairingAccepted: () => {
+            toast.success('Pairing accepted');
+            syncPairedDevices();
           },
           onTransferProgress: (p) => {
             const existing = useAppStore
@@ -100,8 +105,9 @@ export function useDropZone() {
         // 3. Connect socket
         await dropzone.connect();
 
-        // 4. Load paired devices into store
+        // 4. Load paired devices + pending requests into store
         await syncPairedDevices();
+        await syncPendingRequests();
 
         store.setInitializing(false);
       } catch (err: any) {
@@ -149,4 +155,27 @@ export async function syncPairedDevices(): Promise<void> {
     }
   }
   store.setPairedDevices(devices);
+}
+
+/**
+ * Load pending incoming pairing requests into the store.
+ */
+export async function syncPendingRequests(): Promise<void> {
+  const store = useAppStore.getState();
+  const pending = await dropzone.getPendingIncoming();
+
+  const requests = [];
+  for (const p of pending) {
+    const info = await dropzone.api.lookupDevice(p.fromDeviceCode);
+    requests.push({
+      pairingId: p.pairingId,
+      fromDeviceCode: p.fromDeviceCode,
+      fromDeviceName: info.success && info.data ? info.data.deviceName : p.fromDeviceCode,
+      fromDeviceType: (info.success && info.data ? info.data.deviceType : 'desktop') as
+        | 'desktop'
+        | 'mobile'
+        | 'web',
+    });
+  }
+  store.setPendingRequests(requests);
 }

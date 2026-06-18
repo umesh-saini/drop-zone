@@ -26,10 +26,13 @@ export function useDropZone() {
           onDeviceStatusChange: (code, online) => store.setDeviceOnline(code, online),
           onClipboardReceived: (content, from) =>
             store.addClip({ id: `${Date.now()}`, content, from, time: Date.now() }),
+          onPairingRequest: () => syncPending(),
+          onPairingAccepted: () => loadDevices(creds.deviceCode),
         };
 
         await dropzone.connect();
         await loadDevices(creds.deviceCode);
+        await syncPending();
       } catch (e) {
         console.error('Init failed', e);
       } finally {
@@ -60,4 +63,19 @@ export async function loadDevices(myCode: string): Promise<void> {
     }
   }
   store.setDevices(devices);
+}
+
+export async function syncPending(): Promise<void> {
+  const store = useStore.getState();
+  const pending = await dropzone.getPendingIncoming();
+  const requests = [];
+  for (const p of pending) {
+    const info = await api.lookupDevice(p.fromDeviceCode);
+    requests.push({
+      pairingId: p.pairingId,
+      fromDeviceCode: p.fromDeviceCode,
+      fromDeviceName: info.success && info.data ? info.data.deviceName : p.fromDeviceCode,
+    });
+  }
+  store.setPendingRequests(requests);
 }

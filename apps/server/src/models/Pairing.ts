@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IPairing extends Document {
   deviceACode: string;
   deviceBCode: string;
+  /** Device code of the device that initiated the pairing request */
+  initiatedBy: string;
   status: 'pending' | 'active' | 'revoked';
   pairedAt: Date | null;
   revokedAt: Date | null;
@@ -21,6 +23,10 @@ const PairingSchema = new Schema<IPairing>(
       type: String,
       required: true,
       index: true,
+    },
+    initiatedBy: {
+      type: String,
+      required: true,
     },
     status: {
       type: String,

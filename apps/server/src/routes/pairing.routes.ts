@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import { Server } from 'socket.io';
 import { authenticate, type AuthRequest, validate } from '../middleware';
 import { pairingService } from '../services';
 
@@ -12,16 +13,27 @@ const pairingRequestSchema = z.object({
   targetDeviceCode: z.string().length(8),
 });
 
+/** Helper to emit a socket event to a device's room */
+function emitToDevice(req: AuthRequest, deviceCode: string, event: string, data: unknown): void {
+  const io = req.app.get('io') as Server | undefined;
+  io?.to(`device:${deviceCode}`).emit(event, data);
+}
+
 /**
  * POST /api/pairings/request
  * Send a pairing request to another device
  */
 router.post('/request', validate(pairingRequestSchema), async (req: AuthRequest, res: Response) => {
   try {
-    const pairing = await pairingService.createPairingRequest(
-      req.deviceCode!,
-      req.body.targetDeviceCode
-    );
+    const targetDeviceCode = req.body.targetDeviceCode;
+    const pairing = await pairingService.createPairingRequest(req.deviceCode!, targetDeviceCode);
+
+    // Notify the target device in real time that it has an incoming request
+    emitToDevice(req, targetDeviceCode, 'pairing:request', {
+      pairingId: pairing._id,
+      fromDevice: req.deviceCode,
+      timestamp: Date.now(),
+    });
 
     res.status(201).json({
       success: true,
@@ -29,6 +41,7 @@ router.post('/request', validate(pairingRequestSchema), async (req: AuthRequest,
         pairingId: pairing._id,
         deviceACode: pairing.deviceACode,
         deviceBCode: pairing.deviceBCode,
+        initiatedBy: pairing.initiatedBy,
         status: pairing.status,
       },
     });
@@ -46,12 +59,19 @@ router.post('/:id/accept', async (req: AuthRequest, res: Response) => {
   try {
     const pairing = await pairingService.acceptPairing(req.params.id as string, req.deviceCode!);
 
+    // Notify the initiator that their request was accepted
+    emitToDevice(req, pairing.initiatedBy, 'pairing:accepted', {
+      pairingId: pairing._id,
+      acceptedBy: req.deviceCode,
+    });
+
     res.json({
       success: true,
       data: {
         pairingId: pairing._id,
         deviceACode: pairing.deviceACode,
         deviceBCode: pairing.deviceBCode,
+        initiatedBy: pairing.initiatedBy,
         status: pairing.status,
         pairedAt: pairing.pairedAt,
       },
@@ -106,6 +126,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         pairingId: p._id,
         deviceACode: p.deviceACode,
         deviceBCode: p.deviceBCode,
+        initiatedBy: p.initiatedBy,
         status: p.status,
         pairedAt: p.pairedAt,
       })),
@@ -129,6 +150,7 @@ router.get('/pending', async (req: AuthRequest, res: Response) => {
         pairingId: p._id,
         deviceACode: p.deviceACode,
         deviceBCode: p.deviceBCode,
+        initiatedBy: p.initiatedBy,
         status: p.status,
         createdAt: p.createdAt,
       })),

@@ -29,6 +29,10 @@ interface AppState {
   pairedDevices: PairedDevice[];
   setPairedDevices: (devices: PairedDevice[]) => void;
 
+  // Pending incoming pairing requests
+  pendingRequests: PendingRequest[];
+  setPendingRequests: (requests: PendingRequest[]) => void;
+
   // Clipboard
   clipboardHistory: ClipboardItem[];
   addClipboardItem: (item: ClipboardItem) => void;
@@ -50,6 +54,13 @@ export interface PairedDevice {
   isOnline: boolean;
   lastSeen: number;
   connectionMode: 'local' | 'remote';
+}
+
+export interface PendingRequest {
+  pairingId: string;
+  fromDeviceCode: string;
+  fromDeviceName: string;
+  fromDeviceType: 'desktop' | 'mobile' | 'web';
 }
 
 export interface ClipboardItem {
@@ -98,6 +109,10 @@ export const useAppStore = create<AppState>((set) => ({
   // Paired devices
   pairedDevices: [],
   setPairedDevices: (devices) => set({ pairedDevices: devices }),
+
+  // Pending requests
+  pendingRequests: [],
+  setPendingRequests: (requests) => set({ pendingRequests: requests }),
 
   // Clipboard
   clipboardHistory: [],
