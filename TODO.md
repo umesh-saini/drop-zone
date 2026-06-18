@@ -310,7 +310,7 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 ### Phase 2: Server Core
 
-- [ ] Database setup (PostgreSQL or SQLite for dev)
+- [ ] Database setup mongodb://umesh:umesh@192.168.29.225:27017/<db-name>?authSource=admin&directConnection=true&replicaSet=rs0
 - [ ] Device registration endpoint (generate 8-char code)
 - [ ] Device code uniqueness validation
 - [ ] Pairing request/accept/reject flow
