@@ -377,8 +377,8 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 - [x] Design system & component library (Tailwind v4 + shadcn-style + CSS vars)
 - [x] Desktop app UI (device list, clipboard history, file transfers, settings)
-- [ ] Mobile app UI (same features, mobile-optimized) — deferred to mobile build phase
-- [ ] Web dashboard (manage devices, view history, settings) — deferred to web build phase
+- [x] Mobile app UI (React Native + Expo, themed screens, bottom tab nav)
+- [x] Web dashboard (landing page + /dashboard device/clipboard/file management)
 - [x] Dark/light theme (dark theme with CSS variables, light theme ready)
 - [x] Animations & transitions (Framer Motion installed, transition utilities)
 - [x] Notification system (Sonner toasts configured)
