@@ -365,13 +365,13 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Device management UI (helpers for icons, last seen, online status, sorting)
 - [x] Permission management UI (display items, direction labels, toggle helpers)
 
-### Phase 8: Local Mode
+### Phase 8: Local Mode ✅
 
-- [ ] mDNS/network discovery service
-- [ ] Local WebSocket server on each device
-- [ ] Auto-detect paired devices on same network
-- [ ] Seamless fallback: local → remote
-- [ ] Connection mode indicator in UI
+- [x] mDNS/network discovery service (UDP broadcast on port 41234)
+- [x] Local WebSocket server on each device (LocalModeManager lifecycle)
+- [x] Auto-detect paired devices on same network (discovery + paired matching)
+- [x] Seamless fallback: local → remote (ConnectionRouter with auto-downgrade)
+- [x] Connection mode indicator in UI (state + events for mode_changed)
 
 ### Phase 9: UI/UX Polish
 
