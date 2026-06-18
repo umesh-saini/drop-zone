@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Platform,
   StatusBar as RNStatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import { ClipboardScreen } from './src/screens/ClipboardScreen';
 import { FilesScreen } from './src/screens/FilesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { colors, spacing, fontSize } from './src/theme';
+import { useDropZone } from './src/hooks/useDropZone';
+import { useStore } from './src/store';
 
 type Tab = 'devices' | 'clipboard' | 'files' | 'settings';
 
@@ -27,6 +30,8 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('devices');
+  const { initializing, connected } = useStore();
+  useDropZone();
 
   const renderScreen = () => {
     switch (tab) {
@@ -41,6 +46,16 @@ export default function App() {
     }
   };
 
+  if (initializing) {
+    return (
+      <SafeAreaView style={[styles.root, styles.center]}>
+        <StatusBar style="light" />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Connecting to DropZone…</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
@@ -54,8 +69,20 @@ export default function App() {
           <Text style={styles.brandName}>DropZone</Text>
         </View>
         <View style={styles.connBadge}>
-          <View style={styles.connDot} />
-          <Text style={styles.connText}>Connected</Text>
+          <View
+            style={[
+              styles.connDot,
+              { backgroundColor: connected ? colors.success : colors.mutedForeground },
+            ]}
+          />
+          <Text
+            style={[
+              styles.connText,
+              { color: connected ? colors.success : colors.mutedForeground },
+            ]}
+          >
+            {connected ? 'Connected' : 'Offline'}
+          </Text>
         </View>
       </View>
 
@@ -95,6 +122,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
+  center: { justifyContent: 'center', alignItems: 'center', gap: spacing.md },
+  loadingText: { color: colors.mutedForeground, fontSize: fontSize.sm },
   brandBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',

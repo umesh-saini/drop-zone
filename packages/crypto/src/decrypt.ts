@@ -1,8 +1,9 @@
-import { decodeBase64 } from 'tweetnacl-util';
+import nacl from 'tweetnacl';
+import { decodeBase64, encodeUTF8 } from 'tweetnacl-util';
 import type { EncryptedPayload } from './types';
 
 /**
- * Decrypt data using AES-256-GCM with a shared secret key.
+ * Decrypt data using NaCl secretbox (XSalsa20-Poly1305) with a shared secret.
  *
  * @param payload - The encrypted payload (nonce + ciphertext)
  * @param sharedSecretBase64 - Base64-encoded 32-byte shared secret
@@ -17,32 +18,20 @@ export async function decrypt(
     throw new Error(`Unsupported encryption version: ${payload.v}`);
   }
 
-  const keyBytes = decodeBase64(sharedSecretBase64);
+  const key = decodeBase64(sharedSecretBase64);
   const nonce = decodeBase64(payload.n);
   const ciphertext = decodeBase64(payload.c);
 
-  // Import key for AES-256-GCM
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    keyBytes as BufferSource,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
+  const decrypted = nacl.secretbox.open(ciphertext, nonce, key);
+  if (!decrypted) {
+    throw new Error('Decryption failed: invalid key or tampered data');
+  }
 
-  // Decrypt (AES-GCM verifies auth tag automatically)
-  const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: nonce as BufferSource },
-    cryptoKey,
-    ciphertext as BufferSource
-  );
-
-  const decoder = new TextDecoder();
-  return decoder.decode(plaintextBuffer);
+  return encodeUTF8(decrypted);
 }
 
 /**
- * Decrypt binary data (Uint8Array) using AES-256-GCM.
+ * Decrypt binary data (Uint8Array) using NaCl secretbox.
  * Used for file chunks.
  *
  * @param payload - The encrypted payload (nonce + ciphertext)
@@ -58,23 +47,14 @@ export async function decryptBinary(
     throw new Error(`Unsupported encryption version: ${payload.v}`);
   }
 
-  const keyBytes = decodeBase64(sharedSecretBase64);
+  const key = decodeBase64(sharedSecretBase64);
   const nonce = decodeBase64(payload.n);
   const ciphertext = decodeBase64(payload.c);
 
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    keyBytes as BufferSource,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
+  const decrypted = nacl.secretbox.open(ciphertext, nonce, key);
+  if (!decrypted) {
+    throw new Error('Decryption failed: invalid key or tampered data');
+  }
 
-  const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: nonce as BufferSource },
-    cryptoKey,
-    ciphertext as BufferSource
-  );
-
-  return new Uint8Array(plaintextBuffer);
+  return decrypted;
 }

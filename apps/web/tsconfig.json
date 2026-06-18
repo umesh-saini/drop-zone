@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@dropzone/shared": ["../../packages/shared/src"]
+      "@dropzone/shared": ["../../packages/shared/src"],
+      "@dropzone/crypto": ["../../packages/crypto/src"]
     }
   },
   "include": [

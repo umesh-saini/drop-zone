@@ -1,13 +1,12 @@
-import { decodeBase64, encodeBase64 } from 'tweetnacl-util';
+import nacl from 'tweetnacl';
+import { decodeBase64, encodeBase64, decodeUTF8 } from 'tweetnacl-util';
 import type { EncryptedPayload } from './types';
 
 /**
- * Encrypt data using AES-256-GCM with a shared secret key.
+ * Encrypt data using NaCl secretbox (XSalsa20-Poly1305) with a shared secret.
  *
- * Uses the Web Crypto API which is available in:
- * - Node.js (globalThis.crypto)
- * - Browsers (window.crypto)
- * - React Native (expo-crypto polyfill)
+ * Works identically across all platforms:
+ * - Node.js, Browsers, React Native (no Web Crypto dependency)
  *
  * @param plaintext - The string data to encrypt
  * @param sharedSecretBase64 - Base64-encoded 32-byte shared secret
@@ -17,40 +16,21 @@ export async function encrypt(
   plaintext: string,
   sharedSecretBase64: string
 ): Promise<EncryptedPayload> {
-  const keyBytes = decodeBase64(sharedSecretBase64);
+  const key = decodeBase64(sharedSecretBase64);
+  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength); // 24 bytes
+  const messageBytes = decodeUTF8(plaintext);
 
-  // Import key for AES-256-GCM
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    keyBytes as BufferSource,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt']
-  );
-
-  // Generate random 12-byte nonce (IV)
-  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
-
-  // Encode plaintext to bytes
-  const encoder = new TextEncoder();
-  const plaintextBytes = encoder.encode(plaintext);
-
-  // Encrypt (AES-256-GCM appends 16-byte auth tag to ciphertext)
-  const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce as BufferSource },
-    cryptoKey,
-    plaintextBytes as BufferSource
-  );
+  const ciphertext = nacl.secretbox(messageBytes, nonce, key);
 
   return {
     v: 1,
     n: encodeBase64(nonce),
-    c: encodeBase64(new Uint8Array(ciphertextBuffer)),
+    c: encodeBase64(ciphertext),
   };
 }
 
 /**
- * Encrypt binary data (Uint8Array) using AES-256-GCM.
+ * Encrypt binary data (Uint8Array) using NaCl secretbox.
  * Used for file chunks.
  *
  * @param data - Binary data to encrypt
@@ -61,27 +41,14 @@ export async function encryptBinary(
   data: Uint8Array,
   sharedSecretBase64: string
 ): Promise<EncryptedPayload> {
-  const keyBytes = decodeBase64(sharedSecretBase64);
+  const key = decodeBase64(sharedSecretBase64);
+  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
 
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    keyBytes as BufferSource,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt']
-  );
-
-  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
-
-  const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce as BufferSource },
-    cryptoKey,
-    data as BufferSource
-  );
+  const ciphertext = nacl.secretbox(data, nonce, key);
 
   return {
     v: 1,
     n: encodeBase64(nonce),
-    c: encodeBase64(new Uint8Array(ciphertextBuffer)),
+    c: encodeBase64(ciphertext),
   };
 }

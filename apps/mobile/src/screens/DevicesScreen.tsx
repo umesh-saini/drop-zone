@@ -1,36 +1,61 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Modal, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { colors, spacing, fontSize, radius } from '../theme';
-
-const devices = [
-  { id: '1', name: 'My Laptop', type: 'laptop', code: '9892-WXHG', online: true, mode: 'local' },
-  { id: '2', name: 'Work PC', type: 'desktop', code: 'A3K9-M2X7', online: true, mode: 'remote' },
-  { id: '3', name: 'iPad', type: 'tablet', code: 'K3M9-2X7P', online: false, mode: 'remote' },
-];
+import { useStore } from '../store';
+import { dropzone } from '../services/dropzone';
+import { loadDevices } from '../hooks/useDropZone';
 
 const iconFor = (type: string) =>
-  type === 'laptop'
-    ? 'laptop-outline'
-    : type === 'tablet'
-      ? 'tablet-portrait-outline'
+  type === 'mobile'
+    ? 'phone-portrait-outline'
+    : type === 'web'
+      ? 'globe-outline'
       : 'desktop-outline';
 
+const fmt = (code: string) => (code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code);
+
 export function DevicesScreen() {
+  const { devices, deviceCode, deviceName } = useStore();
+  const [modal, setModal] = useState(false);
+  const [target, setTarget] = useState('');
+  const [pairing, setPairing] = useState(false);
+
+  const handlePair = async () => {
+    const code = target.replace(/-/g, '').toUpperCase().trim();
+    if (code.length !== 8) {
+      Alert.alert('Invalid code', 'Enter an 8-character device code');
+      return;
+    }
+    setPairing(true);
+    try {
+      await dropzone.pairWithDevice(code);
+      Alert.alert('Request sent', 'Waiting for the other device to accept');
+      setModal(false);
+      setTarget('');
+      if (deviceCode) await loadDevices(deviceCode);
+    } catch (e: any) {
+      Alert.alert('Pairing failed', e.message);
+    } finally {
+      setPairing(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Devices</Text>
-          <Text style={styles.subtitle}>{devices.length} paired devices</Text>
+          <Text style={styles.subtitle}>{devices.length} paired</Text>
         </View>
         <Button
           label="Pair"
           icon={<Ionicons name="add" size={18} color={colors.primaryForeground} />}
           style={{ paddingHorizontal: spacing.md }}
+          onPress={() => setModal(true)}
         />
       </View>
 
@@ -41,35 +66,79 @@ export function DevicesScreen() {
             <Ionicons name="phone-portrait-outline" size={22} color={colors.primary} />
           </View>
           <View style={styles.deviceInfo}>
-            <Text style={styles.deviceName}>This Phone</Text>
-            <Text style={styles.deviceCode}>BDYE-E9BL</Text>
+            <Text style={styles.deviceName}>{deviceName || 'This Phone'}</Text>
+            <Text style={styles.deviceCode}>{deviceCode ? fmt(deviceCode) : '--------'}</Text>
           </View>
           <Badge label="This device" variant="success" />
         </Card>
 
-        {devices.map((d) => (
-          <Card key={d.id} style={styles.deviceCard}>
-            <View style={styles.iconWrap}>
-              <View style={styles.iconBoxSecondary}>
-                <Ionicons name={iconFor(d.type) as any} size={22} color={colors.foreground} />
+        {devices.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="link-outline" size={40} color={colors.mutedForeground} />
+            <Text style={styles.emptyTitle}>No paired devices</Text>
+            <Text style={styles.emptyText}>Tap Pair to connect your computer</Text>
+          </View>
+        ) : (
+          devices.map((d) => (
+            <Card key={d.pairingId} style={styles.deviceCard}>
+              <View style={styles.iconWrap}>
+                <View style={styles.iconBoxSecondary}>
+                  <Ionicons
+                    name={iconFor(d.deviceType) as any}
+                    size={22}
+                    color={colors.foreground}
+                  />
+                </View>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: d.online ? colors.success : colors.mutedForeground },
+                  ]}
+                />
               </View>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: d.online ? colors.success : colors.mutedForeground },
-                ]}
-              />
-            </View>
-            <View style={styles.deviceInfo}>
-              <Text style={styles.deviceName}>{d.name}</Text>
-              <Text style={styles.deviceCode}>
-                {d.code} • {d.online ? 'Online' : 'Offline'}
-              </Text>
-            </View>
-            {d.online && <Badge label={d.mode === 'local' ? 'LAN' : 'Remote'} variant="outline" />}
-          </Card>
-        ))}
+              <View style={styles.deviceInfo}>
+                <Text style={styles.deviceName}>{d.deviceName}</Text>
+                <Text style={styles.deviceCode}>
+                  {fmt(d.deviceCode)} • {d.online ? 'Online' : 'Offline'}
+                </Text>
+              </View>
+            </Card>
+          ))
+        )}
       </ScrollView>
+
+      {/* Pair modal */}
+      <Modal
+        visible={modal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Pair a Device</Text>
+            <Text style={styles.modalSubtitle}>Enter the other device's code</Text>
+            <TextInput
+              value={target}
+              onChangeText={setTarget}
+              placeholder="XXXX-XXXX"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="characters"
+              maxLength={9}
+              style={styles.input}
+            />
+            <View style={styles.modalActions}>
+              <Button
+                label="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                onPress={() => setModal(false)}
+              />
+              <Button label={pairing ? '...' : 'Pair'} style={{ flex: 1 }} onPress={handlePair} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -121,4 +190,36 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: 'monospace',
   },
+  empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
+  emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
+  emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modalCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground },
+  modalSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    color: colors.foreground,
+    fontSize: fontSize.lg,
+    textAlign: 'center',
+    letterSpacing: 4,
+    fontFamily: 'monospace',
+  },
+  modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
 });
