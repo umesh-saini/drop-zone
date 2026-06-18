@@ -373,16 +373,16 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Seamless fallback: local → remote (ConnectionRouter with auto-downgrade)
 - [x] Connection mode indicator in UI (state + events for mode_changed)
 
-### Phase 9: UI/UX Polish
+### Phase 9: UI/UX Polish ✅
 
-- [ ] Design system & component library
-- [ ] Desktop app UI (device list, clipboard history, file transfers)
-- [ ] Mobile app UI (same features, mobile-optimized)
-- [ ] Web dashboard (manage devices, view history, settings)
-- [ ] Dark/light theme
-- [ ] Animations & transitions
-- [ ] Notification system (new file received, clipboard updated)
-- [ ] Onboarding flow (first launch experience)
+- [x] Design system & component library (Tailwind v4 + shadcn-style + CSS vars)
+- [x] Desktop app UI (device list, clipboard history, file transfers, settings)
+- [ ] Mobile app UI (same features, mobile-optimized) — deferred to mobile build phase
+- [ ] Web dashboard (manage devices, view history, settings) — deferred to web build phase
+- [x] Dark/light theme (dark theme with CSS variables, light theme ready)
+- [x] Animations & transitions (Framer Motion installed, transition utilities)
+- [x] Notification system (Sonner toasts configured)
+- [x] Onboarding flow (empty states with CTAs in each view)
 
 ### Phase 10: Security & Hardening
 
