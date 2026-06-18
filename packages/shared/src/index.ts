@@ -18,3 +18,6 @@ export * from './file-transfer';
 
 // Remote File Access
 export * from './remote-access';
+
+// Pairing UX
+export * from './pairing';
