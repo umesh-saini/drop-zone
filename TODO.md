@@ -294,18 +294,19 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 ## TODO — Implementation Phases
 
-### Phase 1: Project Setup
+### Phase 1: Project Setup ✅
 
-- [ ] Initialize Turborepo monorepo with pnpm
-- [ ] Setup `apps/server` — Express + TypeScript
-- [ ] Setup `apps/desktop` — Tauri + React + Vite
-- [ ] Setup `apps/web` — Next.js
-- [ ] Setup `apps/mobile` — React Native (Expo or bare)
-- [ ] Setup `packages/shared` — shared types & utils
-- [ ] Setup `packages/crypto` — encryption module
-- [ ] Setup `packages/protocol` — message protocol definitions
-- [ ] Configure ESLint, Prettier, TypeScript across monorepo
-- [ ] Setup CI basics (lint, type-check, build)
+- [x] Initialize Turborepo monorepo with pnpm
+- [x] Setup `apps/server` — Express + TypeScript
+- [x] Setup `apps/desktop` — Tauri + React + Vite
+- [x] Setup `apps/web` — Next.js
+- [x] Setup `apps/mobile` — React Native Expo SDK 56
+- [x] Setup `packages/shared` — shared types & utils
+- [x] Setup `packages/crypto` — encryption module
+- [x] Setup `packages/protocol` — message protocol definitions
+- [x] Setup `packages/ui` — shared UI components (placeholder)
+- [x] Configure ESLint, Prettier, TypeScript across monorepo
+- [x] Setup project documentation (README, TODO)
 
 ### Phase 2: Server Core
 
