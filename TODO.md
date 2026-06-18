@@ -356,14 +356,14 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Sandboxed access (user-defined accessible folders, path traversal blocked)
 - [x] File preview (first 10KB for text, base64 for images)
 
-### Phase 7: Pairing UX
+### Phase 7: Pairing UX ✅
 
-- [ ] QR code generation (encode device code + public key)
-- [ ] QR code scanner (mobile camera)
-- [ ] Manual PIN entry fallback
-- [ ] Pairing confirmation screen
-- [ ] Device management UI (view paired devices, revoke)
-- [ ] Permission management UI (toggle per permission per direction)
+- [x] QR code generation (encodes device code + public key in dropzone:// URI)
+- [x] QR code scanner support (decodeQRData with validation + expiry)
+- [x] Manual PIN entry fallback (6-digit, 2-min expiry, server register/verify)
+- [x] Pairing confirmation screen (PairingFlow state machine)
+- [x] Device management UI (helpers for icons, last seen, online status, sorting)
+- [x] Permission management UI (display items, direction labels, toggle helpers)
 
 ### Phase 8: Local Mode
 
