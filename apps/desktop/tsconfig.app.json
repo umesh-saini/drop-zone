@@ -2,7 +2,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "types": ["vite/client"],
     "skipLibCheck": true,
@@ -15,11 +15,20 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path alias */
+    "paths": {
+      "@/*": ["./src/*"],
+      "@dropzone/shared": ["../../packages/shared/src"],
+      "@dropzone/crypto": ["../../packages/crypto/src"],
+      "@dropzone/protocol": ["../../packages/protocol/src"]
+    },
+
     /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }

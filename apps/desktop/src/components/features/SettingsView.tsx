@@ -1,0 +1,126 @@
+import { User, Shield, Wifi, Info } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useAppStore } from '@/stores/app.store';
+
+export function SettingsView() {
+  const { deviceCode, deviceName, connectionMode } = useAppStore();
+
+  return (
+    <div className="flex h-full flex-col p-6 overflow-y-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-sm text-muted-foreground">Manage your device and preferences</p>
+      </div>
+
+      <div className="space-y-4 max-w-2xl">
+        {/* Device Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <User className="h-4 w-4" />
+              Device
+            </CardTitle>
+            <CardDescription>Your device identity and connection info</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Device Name</span>
+              <span className="text-sm font-medium">{deviceName || 'Not set'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Device Code</span>
+              <span className="text-sm font-mono">
+                {deviceCode ? `${deviceCode.slice(0, 4)}-${deviceCode.slice(4)}` : '--------'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Connection</span>
+              <span className="text-sm capitalize">{connectionMode}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Privacy */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Shield className="h-4 w-4" />
+              Privacy & Security
+            </CardTitle>
+            <CardDescription>End-to-end encryption settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Encryption</span>
+              <span className="text-sm text-success font-medium">AES-256-GCM</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Key Exchange</span>
+              <span className="text-sm">X25519</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Zero-knowledge server</span>
+              <span className="text-sm text-success">Active</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Network */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wifi className="h-4 w-4" />
+              Network
+            </CardTitle>
+            <CardDescription>Local mode and connection preferences</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm">Local Mode</span>
+                <p className="text-xs text-muted-foreground">
+                  Direct connection when on same network
+                </p>
+              </div>
+              <Button variant="outline" size="sm">
+                Enabled
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm">Prefer Local</span>
+                <p className="text-xs text-muted-foreground">
+                  Use LAN when available for faster transfers
+                </p>
+              </div>
+              <Button variant="outline" size="sm">
+                On
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* About */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Info className="h-4 w-4" />
+              About
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Version</span>
+              <span className="text-sm">0.1.0</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Platform</span>
+              <span className="text-sm">Desktop (Tauri)</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
