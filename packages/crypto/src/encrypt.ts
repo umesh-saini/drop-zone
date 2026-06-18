@@ -22,7 +22,7 @@ export async function encrypt(
   // Import key for AES-256-GCM
   const cryptoKey = await globalThis.crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['encrypt']
@@ -37,9 +37,9 @@ export async function encrypt(
 
   // Encrypt (AES-256-GCM appends 16-byte auth tag to ciphertext)
   const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: nonce as BufferSource },
     cryptoKey,
-    plaintextBytes
+    plaintextBytes as BufferSource
   );
 
   return {
@@ -65,7 +65,7 @@ export async function encryptBinary(
 
   const cryptoKey = await globalThis.crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['encrypt']
@@ -74,9 +74,9 @@ export async function encryptBinary(
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
 
   const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: nonce as BufferSource },
     cryptoKey,
-    data
+    data as BufferSource
   );
 
   return {

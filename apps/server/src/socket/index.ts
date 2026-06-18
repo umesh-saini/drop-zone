@@ -43,14 +43,15 @@ export function setupSocketHandlers(io: Server): void {
     const deviceCode = socket.deviceCode!;
     console.log(`📱 Device connected: ${deviceCode} (socket: ${socket.id})`);
 
-    // Create session
-    await sessionService.createSession(deviceCode, socket.id);
-
-    // Join device-specific room
+    // Join device-specific room (synchronous)
     socket.join(`device:${deviceCode}`);
 
-    // Notify paired devices that this device is online
-    await notifyPairedDevices(io, deviceCode, 'device:online', { deviceCode });
+    // Create session + notify peers (async, fire-and-forget so it doesn't
+    // delay event-listener registration and lose early events)
+    void (async () => {
+      await sessionService.createSession(deviceCode, socket.id);
+      await notifyPairedDevices(io, deviceCode, 'device:online', { deviceCode });
+    })();
 
     // --- Event Handlers ---
 

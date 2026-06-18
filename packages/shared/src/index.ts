@@ -24,3 +24,6 @@ export * from './pairing';
 
 // Local Mode
 export * from './local-mode';
+
+// Client SDK
+export * from './client';

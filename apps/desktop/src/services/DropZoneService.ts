@@ -1,0 +1,244 @@
+import { io, Socket } from 'socket.io-client';
+import {
+  ApiClient,
+  RealtimeClient,
+  ClipboardSyncService,
+  type DeviceCredentials,
+  type PairingInfo,
+} from '@dropzone/shared';
+import {
+  generateKeyPair,
+  deriveSharedSecret,
+  encryptClipboard,
+  decryptClipboard,
+} from '@dropzone/crypto';
+import { config, detectPlatform } from '@/lib/config';
+import { TauriClipboardAdapter } from './TauriClipboardAdapter';
+import * as credStore from './credentialStore';
+
+/**
+ * DropZoneService is the central orchestrator for the desktop app.
+ * Wires together: API client, realtime socket, crypto, clipboard sync.
+ */
+export class DropZoneService {
+  api: ApiClient;
+  private socket: Socket | null = null;
+  private realtime: RealtimeClient | null = null;
+  private clipboardSync: ClipboardSyncService | null = null;
+  private credentials: DeviceCredentials | null = null;
+  private pairings: PairingInfo[] = [];
+  // pairingId -> peer deviceCode
+  private pairingPeers = new Map<string, string>();
+
+  // Event callbacks for the UI
+  callbacks: {
+    onConnectionChange?: (connected: boolean) => void;
+    onClipboardReceived?: (content: string, fromDevice: string) => void;
+    onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
+    onPairingRequest?: (fromDevice: string) => void;
+    onClipboardSent?: (content: string) => void;
+  } = {};
+
+  constructor() {
+    this.api = new ApiClient(config.serverUrl);
+    this.api.onTokenRotation((newToken) => {
+      credStore.updateToken(newToken);
+    });
+  }
+
+  /**
+   * Initialize: load existing credentials or register a new device.
+   */
+  async initialize(deviceName?: string): Promise<DeviceCredentials> {
+    let creds = await credStore.loadCredentials();
+
+    if (creds) {
+      // Existing device — re-authenticate
+      this.api.setToken(creds.token);
+      const me = await this.api.getMe();
+      if (!me.success) {
+        // Token expired — re-login with secret token
+        const login = await this.api.login(creds.deviceCode, creds.secretToken);
+        if (login.success && login.data) {
+          creds.token = login.data.token;
+          this.api.setToken(creds.token);
+          await credStore.saveCredentials(creds);
+        }
+      }
+    } else {
+      // New device — generate keys + register
+      const keyPair = generateKeyPair();
+      const name = deviceName || `Desktop ${Math.floor(Math.random() * 1000)}`;
+      const res = await this.api.register({
+        deviceName: name,
+        deviceType: 'desktop',
+        platform: detectPlatform(),
+        publicKey: keyPair.publicKey,
+      });
+
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Registration failed');
+      }
+
+      creds = {
+        deviceCode: res.data.deviceCode,
+        deviceName: res.data.deviceName,
+        deviceType: 'desktop',
+        platform: detectPlatform(),
+        token: res.data.token,
+        secretToken: res.data.secretToken,
+        publicKey: keyPair.publicKey,
+        secretKey: keyPair.secretKey,
+      };
+
+      this.api.setToken(creds.token);
+      await credStore.saveCredentials(creds);
+    }
+
+    this.credentials = creds;
+    return creds;
+  }
+
+  /**
+   * Connect to the server via WebSocket.
+   */
+  async connect(): Promise<void> {
+    if (!this.credentials) throw new Error('Not initialized');
+
+    this.socket = io(config.wsUrl, {
+      auth: { token: this.credentials.token },
+      transports: ['websocket'],
+      reconnection: true,
+    });
+
+    this.realtime = new RealtimeClient(this.socket);
+    this.realtime.start({
+      onConnect: () => this.callbacks.onConnectionChange?.(true),
+      onDisconnect: () => this.callbacks.onConnectionChange?.(false),
+      onDeviceOnline: (code) => this.callbacks.onDeviceStatusChange?.(code, true),
+      onDeviceOffline: (code) => this.callbacks.onDeviceStatusChange?.(code, false),
+      onClipboardUpdate: (data) => this.handleIncomingClipboard(data),
+      onPairingRequest: (data) => this.callbacks.onPairingRequest?.(data.fromDevice),
+      onError: (data) => console.error('[Socket] Error:', data.message),
+    });
+
+    this.realtime.connect();
+
+    // Load pairings
+    await this.refreshPairings();
+
+    // Start clipboard sync
+    this.startClipboardSync();
+  }
+
+  /**
+   * Disconnect from the server.
+   */
+  disconnect(): void {
+    this.clipboardSync?.stop();
+    this.realtime?.disconnect();
+    this.socket = null;
+  }
+
+  /**
+   * Refresh the list of pairings and resolve shared secrets.
+   */
+  async refreshPairings(): Promise<PairingInfo[]> {
+    const res = await this.api.getPairings();
+    if (res.success && res.data) {
+      this.pairings = res.data.filter((p) => p.status === 'active');
+      // Map pairingId -> peer device code
+      for (const p of this.pairings) {
+        const peer = p.deviceACode === this.credentials!.deviceCode ? p.deviceBCode : p.deviceACode;
+        this.pairingPeers.set(p.pairingId, peer);
+        await this.ensureSharedSecret(p, peer);
+      }
+    }
+    return this.pairings;
+  }
+
+  /**
+   * Ensure we have a derived shared secret stored for a pairing.
+   */
+  private async ensureSharedSecret(pairing: PairingInfo, peerCode: string): Promise<void> {
+    const existing = await credStore.getSharedSecret(pairing.pairingId);
+    if (existing) return;
+
+    // Fetch peer's public key and derive the shared secret
+    const peer = await this.api.lookupDevice(peerCode);
+    if (peer.success && peer.data?.publicKey) {
+      const secret = deriveSharedSecret(this.credentials!.secretKey, peer.data.publicKey);
+      await credStore.saveSharedSecret(pairing.pairingId, secret);
+    }
+  }
+
+  /**
+   * Start monitoring local clipboard and syncing to paired devices.
+   */
+  private startClipboardSync(): void {
+    const adapter = new TauriClipboardAdapter(config.localDiscoveryPort ? 800 : 800);
+    this.clipboardSync = new ClipboardSyncService(adapter, { debounceMs: 400 });
+
+    this.clipboardSync.start(async (content, _timestamp) => {
+      // Encrypt and send to every paired device
+      for (const pairing of this.pairings) {
+        const secret = await credStore.getSharedSecret(pairing.pairingId);
+        if (!secret) continue;
+        const encrypted = await encryptClipboard(content, secret);
+        this.realtime?.syncClipboard(JSON.stringify(encrypted), Date.now());
+      }
+      this.callbacks.onClipboardSent?.(content);
+    });
+  }
+
+  /**
+   * Handle an incoming encrypted clipboard update.
+   */
+  private async handleIncomingClipboard(data: {
+    content: string;
+    fromDevice: string;
+    timestamp: number;
+    pairingId: string;
+  }): Promise<void> {
+    const secret = await credStore.getSharedSecret(data.pairingId);
+    if (!secret) return;
+
+    try {
+      const payload = JSON.parse(data.content);
+      const plaintext = await decryptClipboard(payload, secret);
+      await this.clipboardSync?.handleRemoteClipboard(plaintext, data.timestamp, data.fromDevice);
+      this.callbacks.onClipboardReceived?.(plaintext, data.fromDevice);
+    } catch (err) {
+      console.error('[Clipboard] Failed to decrypt:', err);
+    }
+  }
+
+  // --- Pairing ---
+
+  async pairWithDevice(targetCode: string): Promise<PairingInfo> {
+    const res = await this.api.requestPairing(targetCode);
+    if (!res.success || !res.data) throw new Error(res.error || 'Pairing failed');
+    return res.data;
+  }
+
+  async acceptPairing(pairingId: string): Promise<void> {
+    const res = await this.api.acceptPairing(pairingId);
+    if (!res.success) throw new Error(res.error || 'Accept failed');
+    await this.refreshPairings();
+  }
+
+  getCredentials(): DeviceCredentials | null {
+    return this.credentials;
+  }
+
+  getPairings(): PairingInfo[] {
+    return this.pairings;
+  }
+
+  getPeerForPairing(pairingId: string): string | undefined {
+    return this.pairingPeers.get(pairingId);
+  }
+}
+
+// Singleton instance
+export const dropzone = new DropZoneService();

@@ -7,6 +7,12 @@ interface AppState {
   currentView: AppView;
   setView: (view: AppView) => void;
 
+  // Initialization
+  isInitializing: boolean;
+  initError: string | null;
+  setInitializing: (v: boolean) => void;
+  setInitError: (e: string | null) => void;
+
   // Device info
   deviceCode: string | null;
   deviceName: string | null;
@@ -70,6 +76,12 @@ export const useAppStore = create<AppState>((set) => ({
   // Navigation
   currentView: 'devices',
   setView: (view) => set({ currentView: view }),
+
+  // Initialization
+  isInitializing: true,
+  initError: null,
+  setInitializing: (v) => set({ isInitializing: v }),
+  setInitError: (e) => set({ initError: e }),
 
   // Device
   deviceCode: null,

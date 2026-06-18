@@ -24,7 +24,7 @@ export async function decrypt(
   // Import key for AES-256-GCM
   const cryptoKey = await globalThis.crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['decrypt']
@@ -32,9 +32,9 @@ export async function decrypt(
 
   // Decrypt (AES-GCM verifies auth tag automatically)
   const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: nonce as BufferSource },
     cryptoKey,
-    ciphertext
+    ciphertext as BufferSource
   );
 
   const decoder = new TextDecoder();
@@ -64,16 +64,16 @@ export async function decryptBinary(
 
   const cryptoKey = await globalThis.crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['decrypt']
   );
 
   const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: nonce as BufferSource },
     cryptoKey,
-    ciphertext
+    ciphertext as BufferSource
   );
 
   return new Uint8Array(plaintextBuffer);

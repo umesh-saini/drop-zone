@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Monitor, Smartphone, Globe, Plus, MoreVertical, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
 import { cn } from '@/lib/utils';
+import { PairingModal } from './PairingModal';
 
 const deviceIcons = {
   desktop: Monitor,
@@ -13,9 +15,11 @@ const deviceIcons = {
 
 export function DevicesView() {
   const { pairedDevices, deviceCode, deviceName } = useAppStore();
+  const [pairingOpen, setPairingOpen] = useState(false);
 
   return (
     <div className="flex h-full flex-col p-6">
+      <PairingModal open={pairingOpen} onClose={() => setPairingOpen(false)} />
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -24,7 +28,7 @@ export function DevicesView() {
             {pairedDevices.length} paired device{pairedDevices.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button size="sm" className="gap-2">
+        <Button size="sm" className="gap-2" onClick={() => setPairingOpen(true)}>
           <Plus className="h-4 w-4" />
           Pair Device
         </Button>
