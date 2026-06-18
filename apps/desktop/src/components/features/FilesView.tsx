@@ -1,11 +1,27 @@
 import { Upload, FileIcon, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
+import { dropzone } from '@/services/DropZoneService';
 
 export function FilesView() {
-  const { activeTransfers, removeTransfer } = useAppStore();
+  const { activeTransfers, removeTransfer, pairedDevices } = useAppStore();
+
+  const handleSend = async () => {
+    const online = pairedDevices.filter((d) => d.isOnline);
+    const target = online[0] || pairedDevices[0];
+    if (!target) {
+      toast.error('No paired device', { description: 'Pair a device first' });
+      return;
+    }
+    try {
+      await dropzone.sendFile(target.deviceCode);
+    } catch (err: any) {
+      toast.error('Send failed', { description: err.message });
+    }
+  };
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -28,7 +44,7 @@ export function FilesView() {
           <h1 className="text-2xl font-bold">Files</h1>
           <p className="text-sm text-muted-foreground">Send and receive files</p>
         </div>
-        <Button size="sm" className="gap-2">
+        <Button size="sm" className="gap-2" onClick={handleSend}>
           <Upload className="h-4 w-4" />
           Send File
         </Button>

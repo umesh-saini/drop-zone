@@ -3,8 +3,10 @@ import {
   ApiClient,
   RealtimeClient,
   ClipboardSyncService,
+  TransferManager,
   type DeviceCredentials,
   type PairingInfo,
+  type TransferProgress,
 } from '@dropzone/shared';
 import {
   generateKeyPair,
@@ -14,6 +16,7 @@ import {
 } from '@dropzone/crypto';
 import { config, detectPlatform } from '@/lib/config';
 import { TauriClipboardAdapter } from './TauriClipboardAdapter';
+import { TauriFileAdapter } from './TauriFileAdapter';
 import * as credStore from './credentialStore';
 
 /**
@@ -25,6 +28,8 @@ export class DropZoneService {
   private socket: Socket | null = null;
   private realtime: RealtimeClient | null = null;
   private clipboardSync: ClipboardSyncService | null = null;
+  private transferManager: TransferManager | null = null;
+  private fileAdapter: TauriFileAdapter | null = null;
   private credentials: DeviceCredentials | null = null;
   private pairings: PairingInfo[] = [];
   // pairingId -> peer deviceCode
@@ -37,6 +42,13 @@ export class DropZoneService {
     onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
     onPairingRequest?: (fromDevice: string) => void;
     onClipboardSent?: (content: string) => void;
+    onTransferProgress?: (progress: TransferProgress) => void;
+    onFileOffer?: (offer: {
+      fileId: string;
+      fileName: string;
+      fileSize: number;
+      fromDevice: string;
+    }) => void;
   } = {};
 
   constructor() {
@@ -119,10 +131,49 @@ export class DropZoneService {
       onDeviceOffline: (code) => this.callbacks.onDeviceStatusChange?.(code, false),
       onClipboardUpdate: (data) => this.handleIncomingClipboard(data),
       onPairingRequest: (data) => this.callbacks.onPairingRequest?.(data.fromDevice),
+      onFileOffer: (data) => {
+        this.transferManager?.handleOffer(
+          { ...data, toDevice: this.credentials!.deviceCode, totalChunks: 0, chunkSize: 0 } as any,
+          this.findPairingForPeer(data.fromDevice) || ''
+        );
+        this.callbacks.onFileOffer?.(data);
+      },
+      onFileAccept: (data) => this.transferManager?.startSending(data.fileId),
+      onFileChunk: (data) =>
+        this.transferManager?.handleChunk({
+          fileId: data.fileId,
+          chunkIndex: data.chunkIndex,
+          totalChunks: data.totalChunks,
+          data: data.data,
+          size: data.data.length,
+        }),
+      onFileComplete: (data) => this.transferManager?.handleComplete(data.fileId),
       onError: (data) => console.error('[Socket] Error:', data.message),
     });
 
     this.realtime.connect();
+
+    // Setup file transfer manager
+    this.fileAdapter = new TauriFileAdapter();
+    this.transferManager = new TransferManager(this.fileAdapter, {
+      onProgress: (p) => this.callbacks.onTransferProgress?.(p),
+      onCompleted: (fileId) => {
+        const p = this.transferManager?.getProgress(fileId);
+        if (p) this.callbacks.onTransferProgress?.({ ...p, status: 'completed', progress: 100 });
+      },
+      onFailed: (fileId, error) => console.error(`Transfer ${fileId} failed:`, error),
+    });
+    this.transferManager.setSendFunctions({
+      sendChunk: (chunk, toDevice) => this.realtime?.sendFileChunk({ ...chunk, toDevice }),
+      sendOffer: (offer) =>
+        this.realtime?.offerFile({
+          toDevice: offer.toDevice,
+          fileName: offer.fileName,
+          fileSize: offer.fileSize,
+          fileType: offer.fileType,
+        }),
+      sendComplete: (fileId, toDevice) => this.realtime?.completeFile(fileId, toDevice),
+    });
 
     // Load pairings
     await this.refreshPairings();
@@ -211,6 +262,42 @@ export class DropZoneService {
     } catch (err) {
       console.error('[Clipboard] Failed to decrypt:', err);
     }
+  }
+
+  // --- File transfer ---
+
+  /**
+   * Pick a file and send it to a paired device.
+   */
+  async sendFile(toDeviceCode: string): Promise<void> {
+    if (!this.fileAdapter || !this.transferManager) throw new Error('Not connected');
+    const files = await this.fileAdapter.pickFiles({ multiple: false });
+    if (files.length === 0) return;
+
+    const pairingId = this.findPairingForPeer(toDeviceCode);
+    if (!pairingId) throw new Error('No active pairing with that device');
+
+    await this.transferManager.sendFile(
+      files[0],
+      toDeviceCode,
+      this.credentials!.deviceCode,
+      pairingId
+    );
+  }
+
+  /**
+   * Accept an incoming file offer.
+   */
+  async acceptFileOffer(fileId: string, fromDevice: string): Promise<void> {
+    await this.transferManager?.acceptTransfer(fileId);
+    this.realtime?.acceptFile(fileId, fromDevice);
+  }
+
+  private findPairingForPeer(peerCode: string): string | undefined {
+    for (const [pairingId, peer] of this.pairingPeers) {
+      if (peer === peerCode) return pairingId;
+    }
+    return undefined;
   }
 
   // --- Pairing ---

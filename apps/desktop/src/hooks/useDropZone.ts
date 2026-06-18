@@ -66,6 +66,35 @@ export function useDropZone() {
               description: 'Open Devices to accept',
             });
           },
+          onTransferProgress: (p) => {
+            const existing = useAppStore
+              .getState()
+              .activeTransfers.find((t) => t.fileId === p.fileId);
+            if (existing) {
+              store.updateTransfer(p.fileId, {
+                status: p.status,
+                progress: p.progress,
+                speed: p.speed,
+              });
+            } else {
+              store.addTransfer({
+                fileId: p.fileId,
+                fileName: p.fileName,
+                fileSize: p.fileSize,
+                direction: p.direction,
+                status: p.status,
+                progress: p.progress,
+                speed: p.speed,
+              });
+            }
+          },
+          onFileOffer: (offer) => {
+            // Auto-accept offers (UI could prompt instead)
+            dropzone.acceptFileOffer(offer.fileId, offer.fromDevice);
+            toast(`Receiving ${offer.fileName}`, {
+              description: `from ${offer.fromDevice.slice(0, 4)}`,
+            });
+          },
         };
 
         // 3. Connect socket
