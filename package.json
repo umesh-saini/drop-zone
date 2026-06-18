@@ -1,0 +1,27 @@
+{
+  "name": "dropzone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A privacy-first, cross-platform utility that bridges your phone and computer",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.2",
+    "prettier": "^3.4.2",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@10.8.0",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=8"
+  }
+}
