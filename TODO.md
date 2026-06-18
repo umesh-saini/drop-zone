@@ -327,15 +327,15 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Message envelope format (encrypted payload + metadata)
 - [x] Key storage (interface + memory/localStorage adapters)
 
-### Phase 4: Clipboard Sync
+### Phase 4: Clipboard Sync ✅
 
-- [ ] Clipboard monitoring (desktop — Tauri API)
-- [ ] Clipboard monitoring (mobile — React Native)
-- [ ] Clipboard change detection & debouncing
-- [ ] Encrypted clipboard broadcast to paired devices
-- [ ] Clipboard receive & update local clipboard
-- [ ] Permission check before sync (respect granted permissions)
-- [ ] Conflict resolution (latest timestamp wins)
+- [x] Clipboard monitoring (desktop — Tauri plugin with polling)
+- [x] Clipboard monitoring (mobile — Expo clipboard with native events)
+- [x] Clipboard change detection & debouncing
+- [x] Encrypted clipboard broadcast to paired devices
+- [x] Clipboard receive & update local clipboard
+- [x] Permission check before sync (respect granted permissions)
+- [x] Conflict resolution (latest timestamp wins)
 
 ### Phase 5: File Sharing
 
