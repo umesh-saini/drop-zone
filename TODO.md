@@ -347,14 +347,14 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] File receive + save to designated folder
 - [x] Permission check before transfer (server-side socket enforcement)
 
-### Phase 6: Remote File Access
+### Phase 6: Remote File Access ✅
 
-- [ ] File system browser API (server-side on source device)
-- [ ] Directory listing protocol
-- [ ] File download on demand
-- [ ] Permission check (read vs write access)
-- [ ] Sandboxed access (user-defined accessible folders)
-- [ ] File preview (images, text, PDFs)
+- [x] File system browser API (RemoteAccessHost on source device)
+- [x] Directory listing protocol (request/response via socket relay)
+- [x] File download on demand (triggers TransferManager file:offer flow)
+- [x] Permission check (file_access_read enforced at server relay)
+- [x] Sandboxed access (user-defined accessible folders, path traversal blocked)
+- [x] File preview (first 10KB for text, base64 for images)
 
 ### Phase 7: Pairing UX
 
