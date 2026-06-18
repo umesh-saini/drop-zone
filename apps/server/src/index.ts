@@ -35,6 +35,16 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Stricter rate limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 auth attempts per 15 minutes per IP
+  message: { error: 'Too many authentication attempts, please try again later' },
+});
+app.use('/api/devices/login', authLimiter);
+app.use('/api/devices/register', authLimiter);
+app.use('/api/pairing/pin', authLimiter);
+
 // --- Routes ---
 app.get('/health', (req, res) => {
   res.json({

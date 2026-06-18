@@ -1,2 +1,3 @@
 export { authenticate, type AuthRequest } from './auth';
 export { validate } from './validate';
+export { bruteForceGuard } from './bruteForceGuard';

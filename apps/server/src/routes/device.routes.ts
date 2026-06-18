@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { authenticate, type AuthRequest, validate } from '../middleware';
+import { authenticate, type AuthRequest, validate, bruteForceGuard } from '../middleware';
 import { deviceService } from '../services';
+import { logFromRequest, recordFailedAttempt, recordSuccess, getClientIP } from '../security';
 
 const router = Router();
 
@@ -31,6 +32,11 @@ router.post('/register', validate(registerSchema), async (req, res: Response) =>
   try {
     const { device, token, secretToken } = await deviceService.registerDevice(req.body);
 
+    await logFromRequest(req, 'device_register', {
+      deviceCode: device.deviceCode,
+      details: { deviceName: device.deviceName, deviceType: device.deviceType },
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -50,16 +56,35 @@ router.post('/register', validate(registerSchema), async (req, res: Response) =>
 /**
  * POST /api/devices/login
  * Authenticate existing device — returns new JWT
+ * Protected by brute-force guard.
  */
-router.post('/login', validate(loginSchema), async (req, res: Response) => {
+router.post('/login', bruteForceGuard, validate(loginSchema), async (req, res: Response) => {
   try {
     const { deviceCode, secretToken } = req.body;
     const result = await deviceService.authenticateDevice(deviceCode, secretToken);
 
     if (!result) {
+      const blockDuration = recordFailedAttempt(getClientIP(req));
+      await logFromRequest(req, 'device_login_failed', {
+        deviceCode,
+        success: false,
+        details: { blockedFor: blockDuration },
+      });
+
+      if (blockDuration > 0) {
+        res.status(429).json({
+          error: 'Too many failed attempts. Please try again later.',
+          retryAfter: blockDuration,
+        });
+        return;
+      }
+
       res.status(401).json({ error: 'Invalid device code or secret token' });
       return;
     }
+
+    recordSuccess(getClientIP(req));
+    await logFromRequest(req, 'device_login', { deviceCode: result.device.deviceCode });
 
     res.json({
       success: true,

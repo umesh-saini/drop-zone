@@ -7,3 +7,4 @@ export {
   type PermissionDirection,
 } from './Permission';
 export { Session, type ISession } from './Session';
+export { AuditLog, type IAuditLog, type AuditAction } from './AuditLog';
