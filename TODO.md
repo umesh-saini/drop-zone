@@ -337,15 +337,15 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Permission check before sync (respect granted permissions)
 - [x] Conflict resolution (latest timestamp wins)
 
-### Phase 5: File Sharing
+### Phase 5: File Sharing ✅
 
-- [ ] File picker UI (desktop + mobile)
-- [ ] File chunking for large files
-- [ ] Encrypted file transfer protocol
-- [ ] Transfer progress tracking
-- [ ] Resume interrupted transfers
-- [ ] File receive + save to designated folder
-- [ ] Permission check before transfer
+- [x] File picker UI (desktop + mobile + web adapters)
+- [x] File chunking for large files (adaptive 64KB-256KB)
+- [x] Encrypted file transfer protocol (chunked with base64 transport)
+- [x] Transfer progress tracking (speed, ETA, percentage)
+- [x] Resume interrupted transfers (tracks completed chunks)
+- [x] File receive + save to designated folder
+- [x] Permission check before transfer (server-side socket enforcement)
 
 ### Phase 6: Remote File Access
 
