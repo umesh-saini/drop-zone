@@ -21,3 +21,6 @@ export * from './remote-access';
 
 // Pairing UX
 export * from './pairing';
+
+// Local Mode
+export * from './local-mode';
