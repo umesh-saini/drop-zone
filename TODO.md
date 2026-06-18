@@ -319,13 +319,13 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Session management (online/offline tracking)
 - [x] Basic auth (JWT + device code + secret token)
 
-### Phase 3: Encryption Layer
+### Phase 3: Encryption Layer ✅
 
-- [ ] X25519 key pair generation per device
-- [ ] Key exchange protocol during pairing
-- [ ] AES-256-GCM encrypt/decrypt utilities
-- [ ] Message envelope format (encrypted payload + metadata)
-- [ ] Key storage (secure storage per platform)
+- [x] X25519 key pair generation per device
+- [x] Key exchange protocol during pairing (shared secret derivation)
+- [x] AES-256-GCM encrypt/decrypt utilities (Web Crypto API)
+- [x] Message envelope format (encrypted payload + metadata)
+- [x] Key storage (interface + memory/localStorage adapters)
 
 ### Phase 4: Clipboard Sync
 
