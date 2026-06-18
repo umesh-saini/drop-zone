@@ -308,16 +308,16 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Configure ESLint, Prettier, TypeScript across monorepo
 - [x] Setup project documentation (README, TODO)
 
-### Phase 2: Server Core
+### Phase 2: Server Core ✅
 
-- [ ] Database setup mongodb://umesh:umesh@192.168.29.225:27017/<db-name>?authSource=admin&directConnection=true&replicaSet=rs0
-- [ ] Device registration endpoint (generate 8-char code)
-- [ ] Device code uniqueness validation
-- [ ] Pairing request/accept/reject flow
-- [ ] Permission CRUD for pairings
-- [ ] WebSocket server for real-time connections
-- [ ] Session management (online/offline tracking)
-- [ ] Basic auth (device code + secret token)
+- [x] Database setup (MongoDB + Mongoose)
+- [x] Device registration endpoint (generate 8-char code)
+- [x] Device code uniqueness validation
+- [x] Pairing request/accept/reject flow
+- [x] Permission CRUD for pairings
+- [x] WebSocket server for real-time connections
+- [x] Session management (online/offline tracking)
+- [x] Basic auth (JWT + device code + secret token)
 
 ### Phase 3: Encryption Layer
 
