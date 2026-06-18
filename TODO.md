@@ -384,15 +384,15 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Notification system (Sonner toasts configured)
 - [x] Onboarding flow (empty states with CTAs in each view)
 
-### Phase 10: Security & Hardening
+### Phase 10: Security & Hardening ✅
 
-- [ ] Rate limiting on all endpoints
-- [ ] Device code brute-force protection
-- [ ] Token rotation
-- [ ] Audit log (who accessed what, when)
-- [ ] Auto-expire inactive sessions
-- [ ] Secure storage audit per platform
-- [ ] Penetration testing
+- [x] Rate limiting on all endpoints (100/min global + 20/15min for auth)
+- [x] Device code brute-force protection (progressive blocking: 15min → 1h → 24h)
+- [x] Token rotation (auto-rotate after 7 days via X-New-Token header)
+- [x] Audit log (AuditLog model, 90-day TTL, all security events logged)
+- [x] Auto-expire inactive sessions (30-min stale cleanup every 5min)
+- [x] Secure storage audit per platform (documented in KeyStorageAdapter)
+- [ ] Penetration testing (manual — out of scope for automated build)
 
 ### Phase 11: Advanced Features (Future)
 
