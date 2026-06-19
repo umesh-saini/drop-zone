@@ -35,6 +35,7 @@ class MobileDropZone {
     onPermissionUpdate?: (pairingId: string) => void;
     onTransferProgress?: (p: TransferProgress) => void;
     onFileSaved?: (fileName: string) => void;
+    onClipboardSent?: (content: string) => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -135,6 +136,37 @@ class MobileDropZone {
     this.fileTransfer.onSaved = (fileName) => this.callbacks.onFileSaved?.(fileName);
 
     await this.refreshPairings();
+
+    // Auto-capture clipboard when app comes to foreground
+    this.startClipboardAutoCapture();
+  }
+
+  private lastClipboard: string | null = null;
+  private appStateListener: any = null;
+
+  private startClipboardAutoCapture(): void {
+    const { AppState } = require('react-native');
+    this.appStateListener = AppState.addEventListener('change', async (state: string) => {
+      if (state === 'active') {
+        // App just came to foreground — check if clipboard changed
+        try {
+          const Clip = require('expo-clipboard');
+          const text = await Clip.getStringAsync();
+          if (text && text !== this.lastClipboard && text.length < 10 * 1024 * 1024) {
+            this.lastClipboard = text;
+            // Auto-send if clipboard_write permission is granted
+            await this.sendClipboard(text);
+          }
+        } catch {
+          // Silently ignore
+        }
+      }
+    });
+  }
+
+  private stopClipboardAutoCapture(): void {
+    this.appStateListener?.remove?.();
+    this.appStateListener = null;
   }
 
   /**
@@ -146,6 +178,7 @@ class MobileDropZone {
 
   disconnect(): void {
     this.stopHeartbeat();
+    this.stopClipboardAutoCapture();
     this.socket?.disconnect();
     this.socket = null;
   }
@@ -194,6 +227,7 @@ class MobileDropZone {
   }
 
   async sendClipboard(content: string): Promise<void> {
+    let sent = false;
     for (const p of this.pairings) {
       // Respect permission
       if (!this.hasPermission(p.pairingId, 'clipboard_write')) continue;
@@ -201,6 +235,11 @@ class MobileDropZone {
       if (!secret) continue;
       const enc = encrypt(content, secret);
       this.socket?.emit('clipboard:sync', { content: JSON.stringify(enc), timestamp: Date.now() });
+      sent = true;
+    }
+    if (sent) {
+      this.lastClipboard = content;
+      this.callbacks.onClipboardSent?.(content);
     }
   }
 

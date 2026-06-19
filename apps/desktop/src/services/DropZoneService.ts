@@ -298,8 +298,14 @@ export class DropZoneService {
    * Start monitoring local clipboard and syncing to paired devices.
    */
   private startClipboardSync(): void {
-    const adapter = new TauriClipboardAdapter(config.localDiscoveryPort ? 800 : 800);
-    this.clipboardSync = new ClipboardSyncService(adapter, { debounceMs: 400 });
+    // Poll every 500ms — this reads the SYSTEM clipboard (not just browser)
+    // via Tauri's clipboard plugin, so it detects copies from any application
+    // even when the DropZone window is unfocused or minimized.
+    const adapter = new TauriClipboardAdapter(500);
+    this.clipboardSync = new ClipboardSyncService(adapter, {
+      debounceMs: 300,
+      maxSize: 10 * 1024 * 1024, // 10MB max
+    });
 
     this.clipboardSync.start(async (content, _timestamp) => {
       // Encrypt and send to every paired device that has clipboard permission
@@ -315,6 +321,14 @@ export class DropZoneService {
       }
       if (sentToAny) this.callbacks.onClipboardSent?.(content);
     });
+  }
+
+  /**
+   * Manually push the current clipboard to all paired devices now.
+   * Useful for on-demand sync (keyboard shortcut, tray menu, button).
+   */
+  async pushClipboardNow(): Promise<void> {
+    await this.clipboardSync?.sendCurrent();
   }
 
   /**

@@ -26,6 +26,10 @@ export function useDropZone() {
           onDeviceStatusChange: (code, online) => store.setDeviceOnline(code, online),
           onClipboardReceived: (content, from) =>
             store.addClip({ id: `${Date.now()}`, content, from, time: Date.now() }),
+          onClipboardSent: (content) =>
+            content
+              ? store.addClip({ id: `${Date.now()}-s`, content, from: null, time: Date.now() })
+              : undefined,
           onPairingRequest: () => syncPending(),
           onPairingAccepted: () => loadDevices(creds.deviceCode),
           onPairingRevoked: () => loadDevices(creds.deviceCode),

@@ -1,9 +1,10 @@
-import { Clipboard, Copy, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Clipboard, Copy, Trash2, ArrowDownLeft, ArrowUpRight, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
 import { toast } from 'sonner';
+import { dropzone } from '@/services/DropZoneService';
 
 export function ClipboardView() {
   const { clipboardHistory, clearClipboardHistory } = useAppStore();
@@ -11,6 +12,15 @@ export function ClipboardView() {
   const copyToClipboard = async (content: string) => {
     await navigator.clipboard.writeText(content);
     toast.success('Copied to clipboard');
+  };
+
+  const pushNow = async () => {
+    try {
+      await dropzone.pushClipboardNow();
+      toast.success('Clipboard pushed');
+    } catch {
+      toast.error('Push failed');
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -29,17 +39,23 @@ export function ClipboardView() {
           <h1 className="text-2xl font-bold">Clipboard</h1>
           <p className="text-sm text-muted-foreground">Synced clipboard history across devices</p>
         </div>
-        {clipboardHistory.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearClipboardHistory}
-            className="gap-2 text-muted-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-            Clear
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={pushNow} className="gap-1">
+            <Upload className="h-3.5 w-3.5" />
+            Push Now
           </Button>
-        )}
+          {clipboardHistory.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearClipboardHistory}
+              className="gap-2 text-muted-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Clipboard history */}
