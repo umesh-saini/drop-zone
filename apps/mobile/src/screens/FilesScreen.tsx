@@ -1,31 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { colors, spacing, fontSize, radius } from '../theme';
+import { useStore } from '../store';
+import { dropzone } from '../services/dropzone';
 
-const transfers = [
-  {
-    id: '1',
-    name: 'presentation.pdf',
-    size: '2.4 MB',
-    progress: 100,
-    status: 'completed',
-    dir: 'receive',
-  },
-  {
-    id: '2',
-    name: 'vacation-photos.zip',
-    size: '45 MB',
-    progress: 62,
-    status: 'in_progress',
-    dir: 'send',
-  },
-];
+const formatSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+};
 
 export function FilesScreen() {
+  const { transfers, devices } = useStore();
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    const online = devices.filter((d) => d.online);
+    const target = online[0] || devices[0];
+    if (!target) {
+      Alert.alert('No paired device', 'Pair a device first to send files');
+      return;
+    }
+    setSending(true);
+    try {
+      await dropzone.sendFile(target.deviceCode);
+    } catch (e: any) {
+      Alert.alert('Send failed', e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -34,41 +44,56 @@ export function FilesScreen() {
           <Text style={styles.subtitle}>Send & receive</Text>
         </View>
         <Button
-          label="Send"
+          label={sending ? '...' : 'Send'}
           icon={<Ionicons name="cloud-upload-outline" size={18} color={colors.primaryForeground} />}
           style={{ paddingHorizontal: spacing.md }}
+          onPress={handleSend}
         />
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {transfers.map((t) => (
-          <Card key={t.id} style={styles.item}>
-            <View style={styles.row}>
-              <View style={styles.iconBox}>
-                <Ionicons
-                  name={t.dir === 'send' ? 'arrow-up' : 'arrow-down'}
-                  size={18}
-                  color={t.dir === 'send' ? colors.primary : colors.success}
+        {transfers.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="folder-open-outline" size={40} color={colors.mutedForeground} />
+            <Text style={styles.emptyTitle}>No transfers yet</Text>
+            <Text style={styles.emptyText}>Tap Send to share a file with a paired device</Text>
+          </View>
+        ) : (
+          transfers.map((t) => (
+            <Card key={t.fileId} style={styles.item}>
+              <View style={styles.row}>
+                <View style={styles.iconBox}>
+                  <Ionicons
+                    name={t.direction === 'send' ? 'arrow-up' : 'arrow-down'}
+                    size={18}
+                    color={t.direction === 'send' ? colors.primary : colors.success}
+                  />
+                </View>
+                <View style={styles.info}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {t.fileName}
+                  </Text>
+                  <Text style={styles.size}>{formatSize(t.fileSize)}</Text>
+                </View>
+                <Badge
+                  label={t.status === 'in_progress' ? `${t.progress}%` : t.status}
+                  variant={
+                    t.status === 'completed'
+                      ? 'success'
+                      : t.status === 'failed'
+                        ? 'secondary'
+                        : 'secondary'
+                  }
                 />
               </View>
-              <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {t.name}
-                </Text>
-                <Text style={styles.size}>{t.size}</Text>
-              </View>
-              <Badge
-                label={t.status === 'in_progress' ? `${t.progress}%` : t.status}
-                variant={t.status === 'completed' ? 'success' : 'secondary'}
-              />
-            </View>
-            {t.status === 'in_progress' && (
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${t.progress}%` }]} />
-              </View>
-            )}
-          </Card>
-        ))}
+              {t.status === 'in_progress' && (
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${t.progress}%` }]} />
+                </View>
+              )}
+            </Card>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -105,4 +130,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary },
+  empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
+  emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
+  emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground, textAlign: 'center' },
 });

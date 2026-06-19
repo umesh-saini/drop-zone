@@ -26,6 +26,8 @@ export interface RealtimeHandlers {
     fileType: string;
     fromDevice: string;
     timestamp: number;
+    totalChunks: number;
+    chunkSize: number;
   }) => void;
   onFileAccept?: (data: { fileId: string; acceptedBy: string }) => void;
   onFileReject?: (data: { fileId: string; rejectedBy: string }) => void;
@@ -104,10 +106,13 @@ export class RealtimeClient {
   }
 
   offerFile(data: {
+    fileId: string;
     toDevice: string;
     fileName: string;
     fileSize: number;
     fileType: string;
+    totalChunks: number;
+    chunkSize: number;
   }): void {
     this.socket.emit('file:offer', data);
   }

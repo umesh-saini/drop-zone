@@ -29,6 +29,16 @@ export function useDropZone() {
           onPairingRequest: () => syncPending(),
           onPairingAccepted: () => loadDevices(creds.deviceCode),
           onPairingRevoked: () => loadDevices(creds.deviceCode),
+          onTransferProgress: (p) =>
+            store.upsertTransfer({
+              fileId: p.fileId,
+              fileName: p.fileName,
+              fileSize: p.fileSize,
+              direction: p.direction,
+              status: p.status,
+              progress: p.progress,
+              fromDevice: p.fromDevice,
+            }),
         };
 
         await dropzone.connect();

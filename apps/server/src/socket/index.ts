@@ -75,24 +75,32 @@ export function setupSocketHandlers(io: Server): void {
     // File offer
     socket.on(
       'file:offer',
-      async (data: { toDevice: string; fileName: string; fileSize: number; fileType: string }) => {
+      async (data: {
+        fileId: string;
+        toDevice: string;
+        fileName: string;
+        fileSize: number;
+        fileType: string;
+        totalChunks: number;
+        chunkSize: number;
+      }) => {
         const canSend = await checkPairedPermission(deviceCode, data.toDevice, 'file_receive');
         if (!canSend) {
-          socket.emit('error', { message: 'File send permission denied' });
+          socket.emit('error', { message: 'File send permission denied', fileId: data.fileId });
           return;
         }
 
-        const fileId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        // Use the sender-provided fileId so both ends reference the same transfer
         io.to(`device:${data.toDevice}`).emit('file:offer', {
-          fileId,
+          fileId: data.fileId,
           fileName: data.fileName,
           fileSize: data.fileSize,
           fileType: data.fileType,
+          totalChunks: data.totalChunks,
+          chunkSize: data.chunkSize,
           fromDevice: deviceCode,
           timestamp: Date.now(),
         });
-
-        socket.emit('file:offer:sent', { fileId });
       }
     );
 

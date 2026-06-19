@@ -4,6 +4,7 @@ import { api } from './api';
 import { generateKeyPair, deriveSharedSecret, encrypt, decrypt } from './crypto';
 import * as storage from './storage';
 import type { DeviceCredentials } from './storage';
+import { FileTransfer, type TransferProgress } from './fileTransfer';
 
 export interface PairingInfo {
   pairingId: string;
@@ -22,6 +23,7 @@ class MobileDropZone {
   private pairings: PairingInfo[] = [];
   private permissionsCache = new Map<string, Record<string, boolean>>();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private fileTransfer = new FileTransfer();
 
   callbacks: {
     onConnectionChange?: (connected: boolean) => void;
@@ -31,6 +33,8 @@ class MobileDropZone {
     onPairingAccepted?: () => void;
     onPairingRevoked?: (pairingId: string) => void;
     onPermissionUpdate?: (pairingId: string) => void;
+    onTransferProgress?: (p: TransferProgress) => void;
+    onFileSaved?: (fileName: string) => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -125,7 +129,19 @@ class MobileDropZone {
       this.callbacks.onPermissionUpdate?.(d.pairingId);
     });
 
+    // Wire file transfer
+    this.fileTransfer.attach(this.socket, this.credentials.deviceCode);
+    this.fileTransfer.onProgress = (p) => this.callbacks.onTransferProgress?.(p);
+    this.fileTransfer.onSaved = (fileName) => this.callbacks.onFileSaved?.(fileName);
+
     await this.refreshPairings();
+  }
+
+  /**
+   * Pick a file and send it to a paired device.
+   */
+  async sendFile(toDevice: string): Promise<void> {
+    await this.fileTransfer.pickAndSend(toDevice);
   }
 
   disconnect(): void {

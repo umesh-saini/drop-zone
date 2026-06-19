@@ -171,7 +171,17 @@ export class DropZoneService {
       },
       onFileOffer: (data) => {
         this.transferManager?.handleOffer(
-          { ...data, toDevice: this.credentials!.deviceCode, totalChunks: 0, chunkSize: 0 } as any,
+          {
+            fileId: data.fileId,
+            fileName: data.fileName,
+            fileSize: data.fileSize,
+            fileType: data.fileType,
+            fromDevice: data.fromDevice,
+            toDevice: this.credentials!.deviceCode,
+            timestamp: data.timestamp,
+            totalChunks: data.totalChunks,
+            chunkSize: data.chunkSize,
+          },
           this.findPairingForPeer(data.fromDevice) || ''
         );
         this.callbacks.onFileOffer?.(data);
@@ -205,10 +215,13 @@ export class DropZoneService {
       sendChunk: (chunk, toDevice) => this.realtime?.sendFileChunk({ ...chunk, toDevice }),
       sendOffer: (offer) =>
         this.realtime?.offerFile({
+          fileId: offer.fileId,
           toDevice: offer.toDevice,
           fileName: offer.fileName,
           fileSize: offer.fileSize,
           fileType: offer.fileType,
+          totalChunks: offer.totalChunks,
+          chunkSize: offer.chunkSize,
         }),
       sendComplete: (fileId, toDevice) => this.realtime?.completeFile(fileId, toDevice),
     });
