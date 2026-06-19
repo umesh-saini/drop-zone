@@ -62,5 +62,17 @@ export const api = {
   getPendingPairings: () => request('GET', '/api/pairings/pending'),
   rejectPairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/reject`),
   revokePairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/revoke`),
+  getPermissions: (pairingId: string) => request('GET', `/api/pairings/${pairingId}/permissions`),
+  updatePermission: (
+    pairingId: string,
+    permissionType: string,
+    direction: string,
+    granted: boolean
+  ) =>
+    request('PUT', `/api/pairings/${pairingId}/permissions`, {
+      permissionType,
+      direction,
+      granted,
+    }),
   verifyPIN: (pin: string) => request('POST', '/api/pairing/pin/verify', { pin }),
 };

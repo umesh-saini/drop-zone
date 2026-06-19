@@ -18,6 +18,7 @@ import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
 import { loadDevices, syncPending } from '../hooks/useDropZone';
 import { QRScanner } from '../components/QRScanner';
+import { PermissionsSheet } from '../components/PermissionsSheet';
 import { decodeQRData } from '../lib/qr';
 
 const iconFor = (type: string) =>
@@ -36,6 +37,7 @@ export function DevicesScreen() {
   const [target, setTarget] = useState('');
   const [pairing, setPairing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [permFor, setPermFor] = useState<{ pairingId: string; name: string } | null>(null);
 
   const handleAccept = async (pairingId: string) => {
     setBusy(pairingId);
@@ -220,6 +222,13 @@ export function DevicesScreen() {
               </View>
               <Pressable
                 hitSlop={8}
+                onPress={() => setPermFor({ pairingId: d.pairingId, name: d.deviceName })}
+                style={styles.unpairBtn}
+              >
+                <Ionicons name="options-outline" size={20} color={colors.mutedForeground} />
+              </Pressable>
+              <Pressable
+                hitSlop={8}
                 disabled={busy === d.pairingId}
                 onPress={() => confirmUnpair(d.pairingId, d.deviceName)}
                 style={styles.unpairBtn}
@@ -303,6 +312,13 @@ export function DevicesScreen() {
           </View>
         </View>
       </Modal>
+
+      <PermissionsSheet
+        visible={!!permFor}
+        onClose={() => setPermFor(null)}
+        pairingId={permFor?.pairingId ?? null}
+        deviceName={permFor?.name ?? 'this device'}
+      />
     </View>
   );
 }

@@ -1,12 +1,28 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import { Server } from 'socket.io';
 import { authenticate, type AuthRequest, validate } from '../middleware';
 import { permissionService } from '../services';
+import { Pairing } from '../models';
 
 const router = Router();
 
 // All permission routes require authentication
 router.use(authenticate);
+
+/** Notify both devices in a pairing that permissions changed */
+async function notifyPermissionUpdate(req: AuthRequest, pairingId: string): Promise<void> {
+  const io = req.app.get('io') as Server | undefined;
+  if (!io) return;
+  const pairing = await Pairing.findById(pairingId);
+  if (!pairing) return;
+  for (const code of [pairing.deviceACode, pairing.deviceBCode]) {
+    io.to(`device:${code}`).emit('permission:update', {
+      pairingId,
+      updatedBy: req.deviceCode,
+    });
+  }
+}
 
 const updatePermissionSchema = z.object({
   permissionType: z.enum([
@@ -84,6 +100,8 @@ router.put(
         granted,
         req.deviceCode!
       );
+
+      await notifyPermissionUpdate(req, req.params.pairingId as string);
 
       res.json({
         success: true,

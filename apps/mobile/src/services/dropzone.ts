@@ -20,6 +20,7 @@ class MobileDropZone {
   private socket: Socket | null = null;
   private credentials: DeviceCredentials | null = null;
   private pairings: PairingInfo[] = [];
+  private permissionsCache = new Map<string, Record<string, boolean>>();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
 
   callbacks: {
@@ -29,6 +30,7 @@ class MobileDropZone {
     onPairingRequest?: (fromDevice: string) => void;
     onPairingAccepted?: () => void;
     onPairingRevoked?: (pairingId: string) => void;
+    onPermissionUpdate?: (pairingId: string) => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -118,6 +120,10 @@ class MobileDropZone {
       storage.deleteSharedSecret(d.pairingId);
       this.callbacks.onPairingRevoked?.(d.pairingId);
     });
+    this.socket.on('permission:update', (d: any) => {
+      this.refreshPermissions(d.pairingId);
+      this.callbacks.onPermissionUpdate?.(d.pairingId);
+    });
 
     await this.refreshPairings();
   }
@@ -133,6 +139,7 @@ class MobileDropZone {
     if (res.success && res.data) {
       this.pairings = res.data.filter((p: PairingInfo) => p.status === 'active');
       for (const p of this.pairings) {
+        await this.refreshPermissions(p.pairingId);
         if (await storage.getSharedSecret(p.pairingId)) continue;
         const peer = p.deviceACode === this.credentials!.deviceCode ? p.deviceBCode : p.deviceACode;
         const info = await api.lookupDevice(peer);
@@ -147,8 +154,33 @@ class MobileDropZone {
     return this.pairings;
   }
 
+  async refreshPermissions(pairingId: string): Promise<void> {
+    const res = await api.getPermissions(pairingId);
+    if (res.success && res.data) {
+      const map: Record<string, boolean> = {};
+      for (const p of res.data) map[p.permissionType] = p.granted;
+      this.permissionsCache.set(pairingId, map);
+    }
+  }
+
+  hasPermission(pairingId: string, permissionType: string): boolean {
+    return this.permissionsCache.get(pairingId)?.[permissionType] ?? false;
+  }
+
+  async setPermission(pairingId: string, permissionType: string, granted: boolean): Promise<void> {
+    const res = await api.updatePermission(pairingId, permissionType, 'bidirectional', granted);
+    if (!res.success) throw new Error(res.error || 'Update failed');
+    await this.refreshPermissions(pairingId);
+  }
+
+  getPermissions(pairingId: string): Record<string, boolean> {
+    return this.permissionsCache.get(pairingId) ?? {};
+  }
+
   async sendClipboard(content: string): Promise<void> {
     for (const p of this.pairings) {
+      // Respect permission
+      if (!this.hasPermission(p.pairingId, 'clipboard_write')) continue;
       const secret = await storage.getSharedSecret(p.pairingId);
       if (!secret) continue;
       const enc = encrypt(content, secret);

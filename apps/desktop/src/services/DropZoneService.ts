@@ -34,6 +34,8 @@ export class DropZoneService {
   private pairings: PairingInfo[] = [];
   // pairingId -> peer deviceCode
   private pairingPeers = new Map<string, string>();
+  // pairingId -> { permissionType: granted }
+  private permissionsCache = new Map<string, Record<string, boolean>>();
 
   // Event callbacks for the UI
   callbacks: {
@@ -43,6 +45,7 @@ export class DropZoneService {
     onPairingRequest?: (fromDevice: string) => void;
     onPairingAccepted?: () => void;
     onPairingRevoked?: (pairingId: string) => void;
+    onPermissionUpdate?: (pairingId: string) => void;
     onClipboardSent?: (content: string) => void;
     onTransferProgress?: (progress: TransferProgress) => void;
     onFileOffer?: (offer: {
@@ -162,6 +165,10 @@ export class DropZoneService {
         credStore.deleteSharedSecret(data.pairingId);
         this.callbacks.onPairingRevoked?.(data.pairingId);
       },
+      onPermissionUpdate: (data) => {
+        this.refreshPermissions(data.pairingId);
+        this.callbacks.onPermissionUpdate?.(data.pairingId);
+      },
       onFileOffer: (data) => {
         this.transferManager?.handleOffer(
           { ...data, toDevice: this.credentials!.deviceCode, totalChunks: 0, chunkSize: 0 } as any,
@@ -234,9 +241,29 @@ export class DropZoneService {
         const peer = p.deviceACode === this.credentials!.deviceCode ? p.deviceBCode : p.deviceACode;
         this.pairingPeers.set(p.pairingId, peer);
         await this.ensureSharedSecret(p, peer);
+        await this.refreshPermissions(p.pairingId);
       }
     }
     return this.pairings;
+  }
+
+  /**
+   * Refresh the cached permissions for a pairing.
+   */
+  async refreshPermissions(pairingId: string): Promise<void> {
+    const res = await this.api.getPermissions(pairingId);
+    if (res.success && res.data) {
+      const map: Record<string, boolean> = {};
+      for (const p of res.data) map[p.permissionType] = p.granted;
+      this.permissionsCache.set(pairingId, map);
+    }
+  }
+
+  /**
+   * Check whether a permission is granted for a pairing (from cache).
+   */
+  hasPermission(pairingId: string, permissionType: string): boolean {
+    return this.permissionsCache.get(pairingId)?.[permissionType] ?? false;
   }
 
   /**
@@ -262,14 +289,18 @@ export class DropZoneService {
     this.clipboardSync = new ClipboardSyncService(adapter, { debounceMs: 400 });
 
     this.clipboardSync.start(async (content, _timestamp) => {
-      // Encrypt and send to every paired device
+      // Encrypt and send to every paired device that has clipboard permission
+      let sentToAny = false;
       for (const pairing of this.pairings) {
+        // Respect permission: must be allowed to write to peer's clipboard
+        if (!this.hasPermission(pairing.pairingId, 'clipboard_write')) continue;
         const secret = await credStore.getSharedSecret(pairing.pairingId);
         if (!secret) continue;
         const encrypted = await encryptClipboard(content, secret);
         this.realtime?.syncClipboard(JSON.stringify(encrypted), Date.now());
+        sentToAny = true;
       }
-      this.callbacks.onClipboardSent?.(content);
+      if (sentToAny) this.callbacks.onClipboardSent?.(content);
     });
   }
 

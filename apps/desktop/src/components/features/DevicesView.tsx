@@ -9,6 +9,7 @@ import {
   Check,
   X,
   Link2Off,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import {
 import { useAppStore } from '@/stores/app.store';
 import { cn } from '@/lib/utils';
 import { PairingModal } from './PairingModal';
+import { PermissionsModal } from './PermissionsModal';
 import { dropzone } from '@/services/DropZoneService';
 import { syncPairedDevices, syncPendingRequests } from '@/hooks/useDropZone';
 
@@ -36,6 +38,7 @@ export function DevicesView() {
   const { pairedDevices, pendingRequests, deviceCode, deviceName } = useAppStore();
   const [pairingOpen, setPairingOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [permFor, setPermFor] = useState<{ pairingId: string; name: string } | null>(null);
 
   const handleAccept = async (pairingId: string) => {
     setBusy(pairingId);
@@ -80,6 +83,12 @@ export function DevicesView() {
   return (
     <div className="flex h-full flex-col p-6">
       <PairingModal open={pairingOpen} onClose={() => setPairingOpen(false)} />
+      <PermissionsModal
+        open={!!permFor}
+        onClose={() => setPermFor(null)}
+        pairingId={permFor?.pairingId ?? null}
+        deviceName={permFor?.name ?? 'this device'}
+      />
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -217,6 +226,14 @@ export function DevicesView() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setPermFor({ pairingId: device.pairingId, name: device.deviceName })
+                          }
+                        >
+                          <SlidersHorizontal className="h-4 w-4" />
+                          Permissions
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           destructive
                           onClick={() => handleUnpair(device.pairingId, device.deviceName)}
