@@ -45,9 +45,8 @@ export interface PairingInfo {
 export interface PermissionInfo {
   id: string;
   permissionType: string;
-  direction: 'a_to_b' | 'b_to_a' | 'bidirectional';
+  ownerDevice: string;
   granted: boolean;
-  grantedBy: string;
   grantedAt: string;
 }
 

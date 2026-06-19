@@ -76,7 +76,7 @@ export function setupSocketHandlers(io: Server): void {
     socket.on(
       'file:offer',
       async (data: { toDevice: string; fileName: string; fileSize: number; fileType: string }) => {
-        const canSend = await checkPairedPermission(deviceCode, data.toDevice, 'file_send');
+        const canSend = await checkPairedPermission(deviceCode, data.toDevice, 'file_receive');
         if (!canSend) {
           socket.emit('error', { message: 'File send permission denied' });
           return;
@@ -226,11 +226,12 @@ async function handleClipboardSync(
     const targetDevice =
       pairing.deviceACode === fromDeviceCode ? pairing.deviceBCode : pairing.deviceACode;
 
-    // Check clipboard_write permission (can this device write to the target's clipboard)
+    // The TARGET device owns its clipboard — check whether it accepts
+    // incoming clipboard writes from the other device.
     const hasPermission = await permissionService.checkPermission(
       pairing._id.toString(),
       'clipboard_write',
-      fromDeviceCode
+      targetDevice
     );
 
     if (hasPermission) {
@@ -245,7 +246,8 @@ async function handleClipboardSync(
 }
 
 /**
- * Check if two devices are paired and have a specific permission
+ * Check if two devices are paired and the TARGET (owner) device grants
+ * the given permission to the other device.
  */
 async function checkPairedPermission(
   fromDevice: string,
@@ -263,11 +265,8 @@ async function checkPairedPermission(
 
   if (!pairing) return false;
 
-  return permissionService.checkPermission(
-    pairing._id.toString(),
-    permissionType as any,
-    fromDevice
-  );
+  // The target device owns the resource and controls access
+  return permissionService.checkPermission(pairing._id.toString(), permissionType as any, toDevice);
 }
 
 /**

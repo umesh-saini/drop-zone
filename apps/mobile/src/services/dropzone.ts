@@ -168,7 +168,7 @@ class MobileDropZone {
   }
 
   async setPermission(pairingId: string, permissionType: string, granted: boolean): Promise<void> {
-    const res = await api.updatePermission(pairingId, permissionType, 'bidirectional', granted);
+    const res = await api.updatePermission(pairingId, permissionType, granted);
     if (!res.success) throw new Error(res.error || 'Update failed');
     await this.refreshPermissions(pairingId);
   }

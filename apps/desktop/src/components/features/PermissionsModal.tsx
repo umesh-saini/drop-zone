@@ -78,7 +78,7 @@ export function PermissionsModal({ open, onClose, pairingId, deviceName }: Permi
     setSaving(group.key);
     try {
       for (const type of group.types) {
-        const res = await dropzone.api.updatePermission(pairingId, type, 'bidirectional', newValue);
+        const res = await dropzone.api.updatePermission(pairingId, type, newValue);
         if (!res.success) throw new Error(res.error || 'Update failed');
       }
       setGranted((prev) => {

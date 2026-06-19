@@ -1,5 +1,5 @@
 import { Pairing, Permission, Device, type IPairing } from '../models';
-import type { PermissionType, PermissionDirection } from '../models';
+import * as permissionService from './permission.service';
 
 /**
  * Create a pairing request from device A to device B
@@ -79,29 +79,11 @@ export async function acceptPairing(pairingId: string, deviceCode: string): Prom
   pairing.pairedAt = new Date();
   await pairing.save();
 
-  // Create default permissions (clipboard sync both ways)
-  const defaultPermissions: {
-    permissionType: PermissionType;
-    direction: PermissionDirection;
-    granted: boolean;
-  }[] = [
-    { permissionType: 'clipboard_read', direction: 'bidirectional', granted: true },
-    { permissionType: 'clipboard_write', direction: 'bidirectional', granted: true },
-    { permissionType: 'file_send', direction: 'bidirectional', granted: true },
-    { permissionType: 'file_receive', direction: 'bidirectional', granted: true },
-    { permissionType: 'file_access_read', direction: 'bidirectional', granted: false },
-    { permissionType: 'file_access_write', direction: 'bidirectional', granted: false },
-    { permissionType: 'notification_mirror', direction: 'bidirectional', granted: false },
-  ];
-
-  await Permission.insertMany(
-    defaultPermissions.map((p) => ({
-      pairingId: pairing._id,
-      ...p,
-      grantedBy: deviceCode,
-      grantedAt: new Date(),
-    }))
-  );
+  // Create default permissions for BOTH devices (each independent)
+  await permissionService.createDefaultPermissions(pairing._id.toString(), [
+    pairing.deviceACode,
+    pairing.deviceBCode,
+  ]);
 
   return pairing;
 }

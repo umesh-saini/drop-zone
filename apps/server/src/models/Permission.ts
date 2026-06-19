@@ -9,14 +9,16 @@ export type PermissionType =
   | 'file_access_write'
   | 'notification_mirror';
 
-export type PermissionDirection = 'a_to_b' | 'b_to_a' | 'bidirectional';
-
 export interface IPermission extends Document {
   pairingId: mongoose.Types.ObjectId;
   permissionType: PermissionType;
-  direction: PermissionDirection;
+  /**
+   * The device that OWNS this setting (the resource owner / target).
+   * It controls whether the OTHER device may perform `permissionType`
+   * toward this device. Each device has its own independent set.
+   */
+  ownerDevice: string;
   granted: boolean;
-  grantedBy: string; // device code of who granted
   grantedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -43,19 +45,14 @@ const PermissionSchema = new Schema<IPermission>(
         'notification_mirror',
       ],
     },
-    direction: {
+    ownerDevice: {
       type: String,
       required: true,
-      enum: ['a_to_b', 'b_to_a', 'bidirectional'],
     },
     granted: {
       type: Boolean,
       required: true,
       default: false,
-    },
-    grantedBy: {
-      type: String,
-      required: true,
     },
     grantedAt: {
       type: Date,
@@ -67,7 +64,7 @@ const PermissionSchema = new Schema<IPermission>(
   }
 );
 
-// A pairing can only have one permission entry per type+direction
-PermissionSchema.index({ pairingId: 1, permissionType: 1, direction: 1 }, { unique: true });
+// One permission entry per (pairing, type, owner device)
+PermissionSchema.index({ pairingId: 1, permissionType: 1, ownerDevice: 1 }, { unique: true });
 
 export const Permission = mongoose.model<IPermission>('Permission', PermissionSchema);

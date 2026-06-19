@@ -142,12 +142,10 @@ export class ApiClient {
   async updatePermission(
     pairingId: string,
     permissionType: string,
-    direction: string,
     granted: boolean
   ): Promise<ApiResponse<PermissionInfo>> {
     return this.request('PUT', `/api/pairings/${pairingId}/permissions`, {
       permissionType,
-      direction,
       granted,
     });
   }
