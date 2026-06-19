@@ -426,24 +426,20 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Both: handle incoming `pairing:revoked` — remove device from list + toast
 - [x] Works for active pairings (cleans local state on both sides)
 
-### Phase 12: Permission Management & Enforcement (P1) ⬅️ NEXT
+### Phase 12: Permission Management & Enforcement (P1) ✅
 
-> Permissions exist in the DB but the UI doesn't let users change them and the
-> client doesn't fully respect them. Make them real and editable from both sides.
+> Permissions are now editable from both devices and enforced.
 
-- [ ] Desktop: per-device Permissions screen/sheet
-  - [ ] Toggle each permission: clipboard send/receive, file send/receive,
-        remote file read, remote file write
-  - [ ] Show direction clearly (This device → Other / Other → This device)
-  - [ ] Live save via `PUT /api/pairings/:id/permissions`
-- [ ] Mobile: same permissions UI
-- [ ] Client-side enforcement: don't send clipboard/files if permission not granted
-- [ ] Server-side enforcement audit: verify every relay checks permission (clipboard, file, remote)
-- [ ] Show "You don't have permission" states in UI when an action is blocked
-- [ ] Default permission template on pair (clipboard both ways on, file access off) — review
-- [ ] Re-fetch permissions when the other device changes them (socket `permission:update`)
+- [x] Desktop: per-device Permissions modal (4 toggle groups, live save)
+- [x] Mobile: per-device Permissions bottom-sheet (same toggles)
+- [x] Client-side enforcement: clipboard not sent without clipboard_write
+- [x] Server-side enforcement: clipboard relay blocked without permission
+- [x] Live sync: permission:update emitted to both devices on change
+- [ ] File-send enforcement client-side (server enforces; client check pending)
+- [ ] "You don't have permission" UI states for remote file actions (Phase 16)
+- [ ] Directional (per-device) permission control (currently bidirectional)
 
-### Phase 13: Mobile — Replace Dummy Data with Real (P1)
+### Phase 13: Mobile — Replace Dummy Data with Real (P1) ⬅️ NEXT
 
 > Mobile Files, Clipboard, and Settings still show placeholder content in places.
 
