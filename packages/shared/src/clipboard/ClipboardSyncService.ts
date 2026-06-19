@@ -141,9 +141,10 @@ export class ClipboardSyncService {
       return;
     }
 
-    // Conflict resolution: latest timestamp wins
-    if (this.lastSentTimestamp > timestamp) {
-      // Our local change is newer — ignore the remote update
+    // Conflict resolution: if we just sent something in the last 2 seconds,
+    // don't overwrite our clipboard with a remote update (prevents echo loops).
+    // Use 2s window instead of strict timestamp comparison to handle clock drift.
+    if (this.lastSentTimestamp > 0 && Date.now() - this.lastSentTimestamp < 2000) {
       return;
     }
 

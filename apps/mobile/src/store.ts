@@ -46,6 +46,7 @@ interface State {
   setDevices: (d: PairedDevice[]) => void;
   setDeviceOnline: (code: string, online: boolean) => void;
   addClip: (c: ClipItem) => void;
+  clearClips: () => void;
   setPendingRequests: (r: PendingRequest[]) => void;
   upsertTransfer: (t: TransferItem) => void;
   removeTransfer: (fileId: string) => void;
@@ -67,6 +68,7 @@ export const useStore = create<State>((set) => ({
   setDeviceOnline: (code, online) =>
     set((s) => ({ devices: s.devices.map((d) => (d.deviceCode === code ? { ...d, online } : d)) })),
   addClip: (c) => set((s) => ({ clips: [c, ...s.clips].slice(0, 50) })),
+  clearClips: () => set({ clips: [] }),
   setPendingRequests: (r) => set({ pendingRequests: r }),
   upsertTransfer: (t) =>
     set((s) => {

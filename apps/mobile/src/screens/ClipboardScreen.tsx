@@ -10,7 +10,7 @@ import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
 
 export function ClipboardScreen() {
-  const { clips } = useStore();
+  const { clips, clearClips } = useStore();
   const [sending, setSending] = useState(false);
 
   const sendCurrent = async () => {
@@ -22,9 +22,8 @@ export function ClipboardScreen() {
         return;
       }
       await dropzone.sendClipboard(text);
-      Alert.alert('Sent', 'Clipboard pushed to paired devices');
     } catch (e: any) {
-      Alert.alert('Failed', e.message);
+      Alert.alert('Push failed', e?.message || String(e));
     } finally {
       setSending(false);
     }
@@ -44,12 +43,21 @@ export function ClipboardScreen() {
           <Text style={styles.title}>Clipboard</Text>
           <Text style={styles.subtitle}>Synced across devices</Text>
         </View>
-        <Button
-          label={sending ? '...' : 'Push'}
-          icon={<Ionicons name="cloud-upload-outline" size={18} color={colors.primaryForeground} />}
-          style={{ paddingHorizontal: spacing.md }}
-          onPress={sendCurrent}
-        />
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          {clips.length > 0 && (
+            <Pressable onPress={clearClips} hitSlop={8} style={styles.clearBtn}>
+              <Ionicons name="trash-outline" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+          <Button
+            label={sending ? '...' : 'Push'}
+            icon={
+              <Ionicons name="cloud-upload-outline" size={18} color={colors.primaryForeground} />
+            }
+            style={{ paddingHorizontal: spacing.md }}
+            onPress={sendCurrent}
+          />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -106,4 +114,5 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
   emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
   emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  clearBtn: { justifyContent: 'center', alignItems: 'center', padding: spacing.xs },
 });

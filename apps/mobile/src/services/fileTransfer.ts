@@ -74,7 +74,16 @@ export class FileTransfer {
    * Pick a file and send it to a device.
    */
   async pickAndSend(toDevice: string): Promise<void> {
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+    if (!this.socket?.connected) {
+      throw new Error('Not connected to server');
+    }
+
+    let result;
+    try {
+      result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+    } catch (e: any) {
+      throw new Error('File picker failed: ' + (e.message || String(e)));
+    }
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
 

@@ -9,7 +9,18 @@ import type { FileAdapter, FilePickerOptions, PickedFile } from '@dropzone/share
 export class TauriFileAdapter implements FileAdapter {
   private saveDir: string | null = null;
 
+  private isTauri = typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+  // In-memory file store for browser dev mode
+  private browserFiles = new Map<string, File>();
+
   async pickFiles(options?: FilePickerOptions): Promise<PickedFile[]> {
+    if (this.isTauri) {
+      return this.pickFilesTauri(options);
+    }
+    return this.pickFilesBrowser(options);
+  }
+
+  private async pickFilesTauri(options?: FilePickerOptions): Promise<PickedFile[]> {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const result = await open({
@@ -37,20 +48,54 @@ export class TauriFileAdapter implements FileAdapter {
       }
 
       return files;
-    } catch {
+    } catch (e) {
+      console.error('[FileAdapter] Tauri pickFiles failed:', e);
       return [];
     }
   }
 
+  private pickFilesBrowser(options?: FilePickerOptions): Promise<PickedFile[]> {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = options?.multiple ?? false;
+      input.onchange = () => {
+        const fileList = Array.from(input.files || []);
+        const picked: PickedFile[] = fileList.map((f) => {
+          const path = `browser://${f.name}-${Date.now()}`;
+          this.browserFiles.set(path, f);
+          return {
+            name: f.name,
+            size: f.size,
+            type: f.type || 'application/octet-stream',
+            path,
+            lastModified: f.lastModified,
+          };
+        });
+        resolve(picked);
+      };
+      input.oncancel = () => resolve([]);
+      input.click();
+    });
+  }
+
   async readChunk(filePath: string, offset: number, length: number): Promise<Uint8Array> {
+    // Browser dev mode: read from in-memory File object
+    const browserFile = this.browserFiles.get(filePath);
+    if (browserFile) {
+      const slice = browserFile.slice(offset, offset + length);
+      const buf = await slice.arrayBuffer();
+      return new Uint8Array(buf);
+    }
+    // Tauri native
     const { readFile } = await import('@tauri-apps/plugin-fs');
-    // Tauri readFile reads entire file — we slice the chunk
-    // For large files, this should use a Rust command for efficiency
     const fullData = await readFile(filePath);
     return fullData.slice(offset, offset + length);
   }
 
   async getFileSize(filePath: string): Promise<number> {
+    const browserFile = this.browserFiles.get(filePath);
+    if (browserFile) return browserFile.size;
     const { stat } = await import('@tauri-apps/plugin-fs');
     const info = await stat(filePath);
     return info.size;
