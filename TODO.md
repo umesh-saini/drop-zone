@@ -452,20 +452,18 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [ ] Incoming file accept/reject prompt (currently auto-accepts — Phase 17)
 - [ ] Encrypt file chunks E2E (currently unencrypted transport — Phase 17)
 
-### Phase 14: Global Clipboard Capture (P1) ⬅️ NEXT
+### Phase 14: Global Clipboard Capture (P1) ✅
 
-> "Anything the user copies — Ctrl+C, right-click copy, a UI button — should sync."
+- [x] Desktop: global clipboard watcher — polls system clipboard every 500ms
+      even when window unfocused (Tauri readText reads system clipboard)
+- [x] Desktop: pushClipboardNow() + "Push Now" button in Clipboard view
+- [x] Mobile: auto-capture on app foreground (AppState listener)
+- [x] Mobile: manual "Push" button (already existed)
+- [x] Debounce + dedupe so same copy isn't synced twice (300ms + content comparison)
+- [x] Respects clipboard permission per direction
+- [ ] Support more clipboard types (images, files) — future enhancement
 
-- [ ] Desktop (Tauri): global clipboard watcher running even when window unfocused
-  - [ ] Use Tauri clipboard polling in Rust side for reliability
-  - [ ] Optional: global shortcut to push clipboard on demand
-- [ ] Mobile: capture clipboard on app foreground + manual "Push" (auto-capture
-      in background is OS-restricted — document the limitation)
-- [ ] Debounce + dedupe so the same copy isn't synced twice
-- [ ] Respect clipboard permission per direction
-- [ ] Support more clipboard types later (images, files) — text first
-
-### Phase 15: Background Service & Efficient Sync (P2)
+### Phase 15: Background Service & Efficient Sync (P2) ⬅️ NEXT
 
 > Both apps should keep syncing in the background, lightweight on battery/CPU.
 
