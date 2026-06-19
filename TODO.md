@@ -439,18 +439,20 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [ ] "You don't have permission" UI states for remote file actions (Phase 16)
 - [ ] Directional (per-device) permission control (currently bidirectional)
 
-### Phase 13: Mobile — Replace Dummy Data with Real (P1) ⬅️ NEXT
+### Phase 13: Mobile — Replace Dummy Data with Real (P1) ✅
 
-> Mobile Files, Clipboard, and Settings still show placeholder content in places.
+> Mobile Files now shows real transfers; file send/receive works.
 
-- [ ] Files screen: wire real transfers from store (currently static demo rows)
-- [ ] Files screen: add "Send File" with expo-document-picker → TransferManager
-- [ ] Files screen: incoming file accept/reject prompt + progress bars
-- [ ] Clipboard screen: ensure history is fully from store (no demo entries)
-- [ ] Settings: all rows reflect real state (done for some — audit all)
-- [ ] Remove any remaining hardcoded device/clip/file mock arrays
+- [x] Files screen: real transfers from store (no static demo rows)
+- [x] Files screen: "Send File" with expo-document-picker → real transfer
+- [x] Files screen: incoming files received + saved, live progress bars
+- [x] Fixed file-transfer protocol bug (sender-provided fileId + chunk metadata)
+- [x] Clipboard screen: history fully from store
+- [x] Settings: real state (done in Phase prior)
+- [ ] Incoming file accept/reject prompt (currently auto-accepts — Phase 17)
+- [ ] Encrypt file chunks E2E (currently unencrypted transport — Phase 17)
 
-### Phase 14: Global Clipboard Capture (P1)
+### Phase 14: Global Clipboard Capture (P1) ⬅️ NEXT
 
 > "Anything the user copies — Ctrl+C, right-click copy, a UI button — should sync."
 
