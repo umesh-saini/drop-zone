@@ -1,8 +1,9 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { sessionService, pairingService, permissionService } from '../services';
+import { sessionService, permissionService } from '../services';
 import { Device, Pairing } from '../models';
+import * as presence from './presence';
 
 interface AuthenticatedSocket extends Socket {
   deviceCode?: string;
@@ -46,11 +47,22 @@ export function setupSocketHandlers(io: Server): void {
     // Join device-specific room (synchronous)
     socket.join(`device:${deviceCode}`);
 
+    // Register in the in-memory presence map
+    const wasOffline = presence.addConnection(deviceCode, socket.id);
+
     // Create session + notify peers (async, fire-and-forget so it doesn't
     // delay event-listener registration and lose early events)
     void (async () => {
       await sessionService.createSession(deviceCode, socket.id);
-      await notifyPairedDevices(io, deviceCode, 'device:online', { deviceCode });
+
+      // Notify paired devices that THIS device is online (only on first socket)
+      if (wasOffline) {
+        await notifyPairedDevices(io, deviceCode, 'device:online', { deviceCode });
+      }
+
+      // Send THIS device the current online status of its paired devices,
+      // so it learns who was already connected before it joined.
+      await sendPresenceSnapshot(socket, deviceCode);
     })();
 
     // --- Event Handlers ---
@@ -168,9 +180,32 @@ export function setupSocketHandlers(io: Server): void {
     socket.on('disconnect', async (reason) => {
       console.log(`📴 Device disconnected: ${deviceCode} (reason: ${reason})`);
       await sessionService.removeSession(socket.id);
-      await notifyPairedDevices(io, deviceCode, 'device:offline', { deviceCode });
+
+      // Only mark offline when the device's LAST socket disconnects
+      const nowOffline = presence.removeConnection(deviceCode, socket.id);
+      if (nowOffline) {
+        await notifyPairedDevices(io, deviceCode, 'device:offline', { deviceCode });
+      }
     });
   });
+}
+
+/**
+ * Send the connecting device a snapshot of which of its paired devices
+ * are currently online (so it learns who was already connected).
+ */
+async function sendPresenceSnapshot(socket: Socket, deviceCode: string): Promise<void> {
+  const pairings = await Pairing.find({
+    $or: [{ deviceACode: deviceCode }, { deviceBCode: deviceCode }],
+    status: 'active',
+  });
+
+  for (const pairing of pairings) {
+    const peer = pairing.deviceACode === deviceCode ? pairing.deviceBCode : pairing.deviceACode;
+    if (presence.isOnline(peer)) {
+      socket.emit('device:online', { deviceCode: peer });
+    }
+  }
 }
 
 /**
