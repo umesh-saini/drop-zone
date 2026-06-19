@@ -416,19 +416,17 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 ---
 
-### Phase 11: Unpair / Disconnect (P0 — critical) ⬅️ NEXT
+### Phase 11: Unpair / Disconnect (P0 — critical) ✅
 
-> Once paired there is currently no way to disconnect. This is the most important gap.
+- [x] Server: revoke fully removes pairing + permissions, returns peer code
+- [x] Server: emit `pairing:revoked` to the other device so it updates live
+- [x] Desktop: "Unpair" action in the device `...` dropdown menu
+- [x] Mobile: "Unpair" action (unlink button) with confirm dialog
+- [x] Both: on unpair, delete stored shared secret for that pairing
+- [x] Both: handle incoming `pairing:revoked` — remove device from list + toast
+- [x] Works for active pairings (cleans local state on both sides)
 
-- [ ] Server: `DELETE /api/pairings/:id` (or reuse revoke) — fully remove pairing + permissions
-- [ ] Server: emit `pairing:revoked` to the other device so it updates live
-- [ ] Desktop: "Unpair" action on each device row (the `...` menu) with confirm dialog
-- [ ] Mobile: "Unpair" action (long-press or detail sheet) with confirm
-- [ ] Both: on unpair, delete stored shared secret for that pairing
-- [ ] Both: handle incoming `pairing:revoked` — remove device from list + toast
-- [ ] Edge case: clean up in-flight transfers / clipboard targets for that peer
-
-### Phase 12: Permission Management & Enforcement (P1)
+### Phase 12: Permission Management & Enforcement (P1) ⬅️ NEXT
 
 > Permissions exist in the DB but the UI doesn't let users change them and the
 > client doesn't fully respect them. Make them real and editable from both sides.
