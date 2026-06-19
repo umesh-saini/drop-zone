@@ -63,6 +63,31 @@ export function DevicesScreen() {
     }
   };
 
+  const confirmUnpair = (pairingId: string, name: string) => {
+    Alert.alert(
+      'Unpair device',
+      `Disconnect from ${name}? You'll need to pair again to reconnect.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unpair',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(pairingId);
+            try {
+              await dropzone.unpairDevice(pairingId);
+              if (deviceCode) await loadDevices(deviceCode);
+            } catch (e: any) {
+              Alert.alert('Failed', e.message);
+            } finally {
+              setBusy(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const closeModal = () => {
     setModal(false);
     setTarget('');
@@ -193,6 +218,14 @@ export function DevicesScreen() {
                   {fmt(d.deviceCode)} • {d.online ? 'Online' : 'Offline'}
                 </Text>
               </View>
+              <Pressable
+                hitSlop={8}
+                disabled={busy === d.pairingId}
+                onPress={() => confirmUnpair(d.pairingId, d.deviceName)}
+                style={styles.unpairBtn}
+              >
+                <Ionicons name="unlink-outline" size={20} color={colors.destructive} />
+              </Pressable>
             </Card>
           ))
         )}
@@ -338,6 +371,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  unpairBtn: { padding: spacing.xs },
   emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
   emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground },
   modalOverlay: {

@@ -503,7 +503,6 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 > Things I think are needed for a solid product.
 
-- [ ] File transfer accept/reject prompt (currently auto-accepts incoming files)
 - [ ] Transfer controls in UI: cancel, pause, resume, retry
 - [ ] Device rename (PATCH /devices/me) from Settings
 - [ ] "Reset this device" / logout (clear creds + re-register)

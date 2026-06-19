@@ -42,6 +42,7 @@ export class DropZoneService {
     onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
     onPairingRequest?: (fromDevice: string) => void;
     onPairingAccepted?: () => void;
+    onPairingRevoked?: (pairingId: string) => void;
     onClipboardSent?: (content: string) => void;
     onTransferProgress?: (progress: TransferProgress) => void;
     onFileOffer?: (offer: {
@@ -156,6 +157,11 @@ export class DropZoneService {
       onClipboardUpdate: (data) => this.handleIncomingClipboard(data),
       onPairingRequest: (data) => this.callbacks.onPairingRequest?.(data.fromDevice),
       onPairingAccepted: () => this.callbacks.onPairingAccepted?.(),
+      onPairingRevoked: (data) => {
+        // Clean up the shared secret for the revoked pairing
+        credStore.deleteSharedSecret(data.pairingId);
+        this.callbacks.onPairingRevoked?.(data.pairingId);
+      },
       onFileOffer: (data) => {
         this.transferManager?.handleOffer(
           { ...data, toDevice: this.credentials!.deviceCode, totalChunks: 0, chunkSize: 0 } as any,
@@ -345,6 +351,18 @@ export class DropZoneService {
   async rejectPairing(pairingId: string): Promise<void> {
     const res = await this.api.rejectPairing(pairingId);
     if (!res.success) throw new Error(res.error || 'Reject failed');
+  }
+
+  /**
+   * Unpair (revoke) an active pairing. Notifies the peer and cleans up the secret.
+   */
+  async unpairDevice(pairingId: string): Promise<void> {
+    const res = await this.api.revokePairing(pairingId);
+    if (!res.success) throw new Error(res.error || 'Unpair failed');
+    await credStore.deleteSharedSecret(pairingId);
+    // Remove from local pairings
+    this.pairings = this.pairings.filter((p) => p.pairingId !== pairingId);
+    this.pairingPeers.delete(pairingId);
   }
 
   /**

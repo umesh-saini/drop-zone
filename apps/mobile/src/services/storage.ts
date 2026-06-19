@@ -64,3 +64,10 @@ export async function getSharedSecret(pairingId: string): Promise<string | null>
   const secrets = raw ? JSON.parse(raw) : {};
   return secrets[pairingId] || null;
 }
+
+export async function deleteSharedSecret(pairingId: string): Promise<void> {
+  const raw = await getItem(SECRETS_KEY);
+  const secrets = raw ? JSON.parse(raw) : {};
+  delete secrets[pairingId];
+  await setItem(SECRETS_KEY, JSON.stringify(secrets));
+}

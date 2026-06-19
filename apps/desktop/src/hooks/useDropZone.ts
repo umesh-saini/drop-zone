@@ -71,6 +71,10 @@ export function useDropZone() {
             toast.success('Pairing accepted');
             syncPairedDevices();
           },
+          onPairingRevoked: () => {
+            toast('A device was unpaired');
+            syncPairedDevices();
+          },
           onTransferProgress: (p) => {
             const existing = useAppStore
               .getState()

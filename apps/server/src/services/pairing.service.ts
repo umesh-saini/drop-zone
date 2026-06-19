@@ -116,17 +116,20 @@ export async function rejectPairing(pairingId: string, deviceCode: string): Prom
 }
 
 /**
- * Revoke an active pairing
+ * Revoke an active pairing (or cancel a pending one).
+ * Returns the peer device code so the caller can notify them.
  */
-export async function revokePairing(pairingId: string, deviceCode: string): Promise<void> {
+export async function revokePairing(pairingId: string, deviceCode: string): Promise<string> {
   const pairing = await Pairing.findById(pairingId);
 
   if (!pairing) throw new Error('Pairing not found');
-  if (pairing.status !== 'active') throw new Error('Pairing is not active');
+  if (pairing.status === 'revoked') throw new Error('Pairing already revoked');
 
   if (pairing.deviceACode !== deviceCode && pairing.deviceBCode !== deviceCode) {
     throw new Error('Device is not part of this pairing');
   }
+
+  const peerCode = pairing.deviceACode === deviceCode ? pairing.deviceBCode : pairing.deviceACode;
 
   pairing.status = 'revoked';
   pairing.revokedAt = new Date();
@@ -134,6 +137,8 @@ export async function revokePairing(pairingId: string, deviceCode: string): Prom
 
   // Remove all permissions for this pairing
   await Permission.deleteMany({ pairingId: pairing._id });
+
+  return peerCode;
 }
 
 /**

@@ -1,9 +1,25 @@
 import { useState } from 'react';
-import { Monitor, Smartphone, Globe, Plus, MoreVertical, Wifi, Check, X } from 'lucide-react';
+import {
+  Monitor,
+  Smartphone,
+  Globe,
+  Plus,
+  MoreVertical,
+  Wifi,
+  Check,
+  X,
+  Link2Off,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/stores/app.store';
 import { cn } from '@/lib/utils';
 import { PairingModal } from './PairingModal';
@@ -43,6 +59,19 @@ export function DevicesView() {
       toast('Request rejected');
     } catch (err: any) {
       toast.error('Failed to reject', { description: err.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleUnpair = async (pairingId: string, name: string) => {
+    setBusy(pairingId);
+    try {
+      await dropzone.unpairDevice(pairingId);
+      await syncPairedDevices();
+      toast(`Unpaired from ${name}`);
+    } catch (err: any) {
+      toast.error('Failed to unpair', { description: err.message });
     } finally {
       setBusy(null);
     }
@@ -181,9 +210,22 @@ export function DevicesView() {
                         )}
                       </Badge>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          destructive
+                          onClick={() => handleUnpair(device.pairingId, device.deviceName)}
+                        >
+                          <Link2Off className="h-4 w-4" />
+                          Unpair device
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardContent>
               </Card>

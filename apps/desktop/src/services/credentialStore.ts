@@ -78,6 +78,20 @@ export async function getSharedSecret(pairingId: string): Promise<string | null>
   return null;
 }
 
+export async function deleteSharedSecret(pairingId: string): Promise<void> {
+  const store = await getTauriStore();
+  if (store) {
+    const secrets = ((await store.get(SECRETS_KEY)) as Record<string, string>) || {};
+    delete secrets[pairingId];
+    await store.set(SECRETS_KEY, secrets);
+    await store.save();
+  } else if (typeof localStorage !== 'undefined') {
+    const secrets = JSON.parse(localStorage.getItem(SECRETS_KEY) || '{}');
+    delete secrets[pairingId];
+    localStorage.setItem(SECRETS_KEY, JSON.stringify(secrets));
+  }
+}
+
 export async function clearCredentials(): Promise<void> {
   const store = await getTauriStore();
   if (store) {

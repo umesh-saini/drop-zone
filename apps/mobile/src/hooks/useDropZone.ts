@@ -28,6 +28,7 @@ export function useDropZone() {
             store.addClip({ id: `${Date.now()}`, content, from, time: Date.now() }),
           onPairingRequest: () => syncPending(),
           onPairingAccepted: () => loadDevices(creds.deviceCode),
+          onPairingRevoked: () => loadDevices(creds.deviceCode),
         };
 
         await dropzone.connect();

@@ -99,11 +99,17 @@ router.post('/:id/reject', async (req: AuthRequest, res: Response) => {
 
 /**
  * POST /api/pairings/:id/revoke
- * Revoke an active pairing
+ * Revoke an active pairing (unpair) — notifies the other device.
  */
 router.post('/:id/revoke', async (req: AuthRequest, res: Response) => {
   try {
-    await pairingService.revokePairing(req.params.id as string, req.deviceCode!);
+    const peerCode = await pairingService.revokePairing(req.params.id as string, req.deviceCode!);
+
+    // Notify the other device that the pairing was revoked
+    emitToDevice(req, peerCode, 'pairing:revoked', {
+      pairingId: req.params.id,
+      revokedBy: req.deviceCode,
+    });
 
     res.json({ success: true, message: 'Pairing revoked' });
   } catch (error: any) {

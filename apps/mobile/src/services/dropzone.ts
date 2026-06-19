@@ -28,6 +28,7 @@ class MobileDropZone {
     onDeviceStatusChange?: (deviceCode: string, online: boolean) => void;
     onPairingRequest?: (fromDevice: string) => void;
     onPairingAccepted?: () => void;
+    onPairingRevoked?: (pairingId: string) => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -113,6 +114,10 @@ class MobileDropZone {
     this.socket.on('clipboard:update', (d: any) => this.handleClipboard(d));
     this.socket.on('pairing:request', (d: any) => this.callbacks.onPairingRequest?.(d.fromDevice));
     this.socket.on('pairing:accepted', () => this.callbacks.onPairingAccepted?.());
+    this.socket.on('pairing:revoked', (d: any) => {
+      storage.deleteSharedSecret(d.pairingId);
+      this.callbacks.onPairingRevoked?.(d.pairingId);
+    });
 
     await this.refreshPairings();
   }
@@ -182,6 +187,13 @@ class MobileDropZone {
   async rejectPairing(pairingId: string): Promise<void> {
     const res = await api.rejectPairing(pairingId);
     if (!res.success) throw new Error(res.error || 'Reject failed');
+  }
+
+  async unpairDevice(pairingId: string): Promise<void> {
+    const res = await api.revokePairing(pairingId);
+    if (!res.success) throw new Error(res.error || 'Unpair failed');
+    await storage.deleteSharedSecret(pairingId);
+    this.pairings = this.pairings.filter((p) => p.pairingId !== pairingId);
   }
 
   async getPendingIncoming(): Promise<{ pairingId: string; fromDeviceCode: string }[]> {

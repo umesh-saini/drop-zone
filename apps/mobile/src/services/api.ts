@@ -60,5 +60,6 @@ export const api = {
   getPairings: () => request('GET', '/api/pairings'),
   getPendingPairings: () => request('GET', '/api/pairings/pending'),
   rejectPairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/reject`),
+  revokePairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/revoke`),
   verifyPIN: (pin: string) => request('POST', '/api/pairing/pin/verify', { pin }),
 };
