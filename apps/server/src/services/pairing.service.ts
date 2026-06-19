@@ -22,7 +22,7 @@ export async function createPairingRequest(
   const [normalA, normalB] =
     deviceACode < deviceBCode ? [deviceACode, deviceBCode] : [deviceBCode, deviceACode];
 
-  // Check if pairing already exists
+  // Check if an active/pending pairing already exists
   const existing = await Pairing.findOne({
     deviceACode: normalA,
     deviceBCode: normalB,
@@ -37,6 +37,14 @@ export async function createPairingRequest(
       throw new Error('Pairing request already pending');
     }
   }
+
+  // Remove any leftover 'revoked' record for these two devices so the unique
+  // index doesn't block creating a fresh pairing (defensive for old data).
+  await Pairing.deleteMany({
+    deviceACode: normalA,
+    deviceBCode: normalB,
+    status: 'revoked',
+  });
 
   const pairing = await Pairing.create({
     deviceACode: normalA,
@@ -131,12 +139,12 @@ export async function revokePairing(pairingId: string, deviceCode: string): Prom
 
   const peerCode = pairing.deviceACode === deviceCode ? pairing.deviceBCode : pairing.deviceACode;
 
-  pairing.status = 'revoked';
-  pairing.revokedAt = new Date();
-  await pairing.save();
-
   // Remove all permissions for this pairing
   await Permission.deleteMany({ pairingId: pairing._id });
+
+  // Fully delete the pairing so the same two devices can pair again later
+  // (a lingering 'revoked' row would collide with the unique index).
+  await pairing.deleteOne();
 
   return peerCode;
 }
