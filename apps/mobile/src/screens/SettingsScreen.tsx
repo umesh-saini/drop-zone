@@ -9,6 +9,8 @@ import { reconnectDropZone } from '../hooks/useDropZone';
 import { dropzone } from '../services/dropzone';
 import * as storage from '../services/storage';
 import * as SecureStore from 'expo-secure-store';
+import { useTheme } from '../theme/ThemeContext';
+import * as FileSystem from 'expo-file-system/legacy';
 
 function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
@@ -44,9 +46,32 @@ const fmt = (code: string | null) =>
 
 export function SettingsScreen() {
   const { deviceCode, deviceName, connected } = useStore();
+  const { theme, toggleTheme } = useTheme();
   const [reconnecting, setReconnecting] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(deviceName || '');
+  const [sharedFolders, setSharedFolders] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        let urisStr = await SecureStore.getItemAsync('sharedDirectoryUris');
+        let uris: string[] = urisStr ? JSON.parse(urisStr) : [];
+
+        // Migrate legacy single folder if needed
+        const legacyUri = await SecureStore.getItemAsync('savedDirectoryUri');
+        if (legacyUri && !uris.includes(legacyUri)) {
+          uris.push(legacyUri);
+          await SecureStore.setItemAsync('sharedDirectoryUris', JSON.stringify(uris));
+          // Keep savedDirectoryUri intact for fileTransfer.ts compatibility
+        }
+        setSharedFolders(uris);
+      } catch (e) {
+        console.error('Failed to load shared folders', e);
+      }
+    };
+    loadFolders();
+  }, []);
 
   const handleReconnect = async () => {
     setReconnecting(true);
@@ -114,6 +139,38 @@ export function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const handleSelectFolder = async () => {
+    try {
+      if (!FileSystem.StorageAccessFramework) {
+        Alert.alert('Not Supported', 'Storage Access Framework is not supported on this device.');
+        return;
+      }
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const uris = [...sharedFolders, permissions.directoryUri];
+        // Deduplicate
+        const uniqueUris = Array.from(new Set(uris));
+
+        await SecureStore.setItemAsync('sharedDirectoryUris', JSON.stringify(uniqueUris));
+        // Keep the first one as default download location for file transfers
+        if (uniqueUris.length === 1) {
+          await SecureStore.setItemAsync('savedDirectoryUri', permissions.directoryUri);
+        }
+        setSharedFolders(uniqueUris);
+        Alert.alert('Success', 'Folder linked successfully. Desktop can now browse this folder.');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleRemoveFolder = async (uriToRemove: string) => {
+    const updated = sharedFolders.filter((uri) => uri !== uriToRemove);
+    await SecureStore.setItemAsync('sharedDirectoryUris', JSON.stringify(updated));
+    setSharedFolders(updated);
   };
 
   return (
@@ -192,10 +249,71 @@ export function SettingsScreen() {
           />
         </Section>
 
+        <Section icon="color-palette-outline" title="Appearance">
+          <View style={styles.connRow}>
+            <Text style={styles.rowValue}>
+              {theme === 'dark' ? '🌙 Dark mode' : '☀️ Light mode'}
+            </Text>
+            <Button
+              label={theme === 'dark' ? 'Light' : 'Dark'}
+              variant="outline"
+              style={{ paddingHorizontal: spacing.md }}
+              onPress={toggleTheme}
+            />
+          </View>
+        </Section>
+
         <Section icon="shield-checkmark-outline" title="Privacy & Security">
           <Row label="Encryption" value="NaCl secretbox" valueColor={colors.success} />
           <Row label="Key Exchange" value="X25519" />
           <Row label="Zero-knowledge" value="Active" valueColor={colors.success} />
+        </Section>
+
+        {/* Shared Storage */}
+        <Section icon="folder-outline" title="Shared Storage">
+          <Text style={styles.hint}>
+            Select folders on your device to share with your paired desktop computers.
+          </Text>
+
+          <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+            {sharedFolders.map((uri) => {
+              let label = 'Shared Folder';
+              try {
+                const decoded = decodeURIComponent(uri);
+                const parts = decoded.split('/');
+                const lastPart = parts[parts.length - 1];
+                if (lastPart.includes(':')) {
+                  label = lastPart.split(':')[1] || lastPart;
+                } else {
+                  label = lastPart;
+                }
+              } catch (e) {}
+
+              return (
+                <View key={uri} style={styles.connRow}>
+                  <View style={styles.connStatus}>
+                    <View style={[styles.dot, { backgroundColor: colors.success }]} />
+                    <Text style={styles.rowValue} numberOfLines={1} ellipsizeMode="middle">
+                      {label}
+                    </Text>
+                  </View>
+                  <Button
+                    label="Remove"
+                    variant="outline"
+                    style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}
+                    onPress={() => handleRemoveFolder(uri)}
+                  />
+                </View>
+              );
+            })}
+          </View>
+
+          <Button
+            label="Add Folder"
+            icon={<Ionicons name="add" size={16} color={colors.primaryForeground} />}
+            onPress={handleSelectFolder}
+            style={{ marginTop: spacing.sm }}
+          />
         </Section>
 
         <Section icon="information-circle-outline" title="About">

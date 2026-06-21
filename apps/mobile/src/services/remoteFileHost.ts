@@ -62,11 +62,20 @@ async function handleListRoots(requestId: string): Promise<RemoteResponse> {
   }
 
   try {
-    const savedSafUri = await SecureStore.getItemAsync('savedDirectoryUri');
-    if (savedSafUri) {
+    let uris: string[] = [];
+    const sharedUrisStr = await SecureStore.getItemAsync('sharedDirectoryUris');
+    if (sharedUrisStr) {
+      uris = JSON.parse(sharedUrisStr);
+    } else {
+      // Fallback migration
+      const savedSafUri = await SecureStore.getItemAsync('savedDirectoryUri');
+      if (savedSafUri) uris.push(savedSafUri);
+    }
+
+    for (const uri of uris) {
       let label = 'Shared Folder';
       try {
-        const decoded = decodeURIComponent(savedSafUri);
+        const decoded = decodeURIComponent(uri);
         const parts = decoded.split('/');
         const lastPart = parts[parts.length - 1];
         if (lastPart.includes(':')) {
@@ -76,7 +85,7 @@ async function handleListRoots(requestId: string): Promise<RemoteResponse> {
         }
       } catch (e) {}
       
-      roots.push({ label: `📱 ${label}`, path: savedSafUri });
+      roots.push({ label: `📱 ${label}`, path: uri });
     }
   } catch (err) {}
 

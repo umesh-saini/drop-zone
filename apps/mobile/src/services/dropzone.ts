@@ -6,6 +6,7 @@ import * as storage from './storage';
 import type { DeviceCredentials } from './storage';
 import { FileTransfer, type TransferProgress } from './fileTransfer';
 import * as FileSystem from 'expo-file-system';
+import { handleRemoteRequest } from './remoteFileHost';
 
 export interface PairingInfo {
   pairingId: string;
@@ -71,8 +72,14 @@ class MobileDropZone {
         creds?.publicKey && creds?.secretKey
           ? { publicKey: creds.publicKey, secretKey: creds.secretKey }
           : generateKeyPair();
+      // Try to get name from onboarding, fall back to random
+      let savedName = '';
+      try {
+        const SecStore = require('expo-secure-store');
+        savedName = (await SecStore.getItemAsync('dropzone_device_name')) || '';
+      } catch {}
       const res = await api.register({
-        deviceName: creds?.deviceName || `Phone ${Math.floor(Math.random() * 1000)}`,
+        deviceName: creds?.deviceName || savedName || `Phone ${Math.floor(Math.random() * 1000)}`,
         deviceType: 'mobile',
         platform: 'android',
         publicKey: kp.publicKey,
@@ -165,7 +172,6 @@ class MobileDropZone {
         return;
       }
 
-      const { handleRemoteRequest } = await import('./remoteFileHost');
       const response = await handleRemoteRequest(d.request);
 
       if (type === 'download_file' && response.success) {

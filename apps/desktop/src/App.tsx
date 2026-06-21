@@ -1,15 +1,32 @@
+import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DevicesView } from '@/components/features/DevicesView';
 import { ClipboardView } from '@/components/features/ClipboardView';
 import { FilesView } from '@/components/features/FilesView';
 import { SettingsView } from '@/components/features/SettingsView';
+import { OnboardingScreen } from '@/components/features/OnboardingScreen';
 import { useAppStore } from '@/stores/app.store';
 import { useDropZone } from '@/hooks/useDropZone';
 
 function App() {
   const { currentView, isInitializing, initError } = useAppStore();
+  const [onboarded, setOnboarded] = useState(
+    () => localStorage.getItem('dropzone_onboarded') === 'true'
+  );
   useDropZone();
+
+  // First-run onboarding
+  if (!onboarded) {
+    return (
+      <OnboardingScreen
+        onComplete={(deviceName) => {
+          localStorage.setItem('dropzone_device_name', deviceName);
+          setOnboarded(true);
+        }}
+      />
+    );
+  }
 
   if (isInitializing) {
     return (

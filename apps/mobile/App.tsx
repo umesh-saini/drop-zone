@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { DevicesScreen } from './src/screens/DevicesScreen';
 import { ClipboardScreen } from './src/screens/ClipboardScreen';
 import { FilesScreen } from './src/screens/FilesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { useThemeStore } from './src/theme/ThemeContext';
 import { colors, spacing, fontSize } from './src/theme';
 import { useDropZone } from './src/hooks/useDropZone';
 import { useStore } from './src/store';
@@ -24,6 +27,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
 function AppContent() {
   const [tab, setTab] = useState<Tab>('devices');
   const { initializing, connected } = useStore();
+  const themeColors = useThemeStore((s) => s.colors);
   const insets = useSafeAreaInsets();
   useDropZone();
 
@@ -42,25 +46,35 @@ function AppContent() {
 
   if (initializing) {
     return (
-      <View style={[styles.root, styles.center, { paddingTop: insets.top }]}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Connecting to DropZone…</Text>
+      <View
+        style={[
+          styles.root,
+          styles.center,
+          { paddingTop: insets.top, backgroundColor: themeColors.background },
+        ]}
+      >
+        <StatusBar style={useThemeStore.getState().theme === 'dark' ? 'light' : 'dark'} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
+        <Text style={[styles.loadingText, { color: themeColors.mutedForeground }]}>
+          Connecting to DropZone…
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <StatusBar style="light" />
+    <View
+      style={[styles.root, { paddingTop: insets.top, backgroundColor: themeColors.background }]}
+    >
+      <StatusBar style={useThemeStore.getState().theme === 'dark' ? 'light' : 'dark'} />
 
       {/* Top brand bar */}
-      <View style={styles.brandBar}>
+      <View style={[styles.brandBar, { borderBottomColor: themeColors.border }]}>
         <View style={styles.brandLeft}>
-          <View style={styles.logo}>
-            <Ionicons name="flash" size={18} color={colors.primary} />
+          <View style={[styles.logo, { backgroundColor: themeColors.primary + '1a' }]}>
+            <Ionicons name="flash" size={18} color={themeColors.primary} />
           </View>
-          <Text style={styles.brandName}>DropZone</Text>
+          <Text style={[styles.brandName, { color: themeColors.foreground }]}>DropZone</Text>
         </View>
         <View style={styles.connBadge}>
           <View
@@ -87,7 +101,16 @@ function AppContent() {
       <View style={styles.screen}>{renderScreen()}</View>
 
       {/* Bottom tab bar — padded for the system navigation bar */}
-      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+      <View
+        style={[
+          styles.tabBar,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing.sm),
+            backgroundColor: themeColors.card,
+            borderTopColor: themeColors.border,
+          },
+        ]}
+      >
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
@@ -95,12 +118,12 @@ function AppContent() {
               <Ionicons
                 name={t.icon}
                 size={22}
-                color={active ? colors.primary : colors.mutedForeground}
+                color={active ? themeColors.primary : themeColors.mutedForeground}
               />
               <Text
                 style={[
                   styles.tabLabel,
-                  { color: active ? colors.primary : colors.mutedForeground },
+                  { color: active ? themeColors.primary : themeColors.mutedForeground },
                 ]}
               >
                 {t.label}
@@ -114,6 +137,33 @@ function AppContent() {
 }
 
 export default function App() {
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Load theme
+    useThemeStore.getState().loadTheme();
+    // Check onboarding
+    SecureStore.getItemAsync('dropzone_onboarded')
+      .then((v) => setOnboarded(v === 'true'))
+      .catch(() => setOnboarded(true));
+  }, []);
+
+  if (onboarded === null) return null;
+
+  if (!onboarded) {
+    return (
+      <SafeAreaProvider>
+        <OnboardingScreen
+          onComplete={(name) => {
+            SecureStore.setItemAsync('dropzone_onboarded', 'true').catch(() => {});
+            SecureStore.setItemAsync('dropzone_device_name', name).catch(() => {});
+            setOnboarded(true);
+          }}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AppContent />

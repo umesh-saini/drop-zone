@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { User, Shield, Wifi, Info, RefreshCw, Plug, Pencil, Trash2 } from 'lucide-react';
+import { User, Shield, Wifi, Info, RefreshCw, Plug, Pencil, Trash2, Sun, Moon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
+import { useThemeStore } from '@/stores/theme.store';
 import { reconnectDropZone } from '@/hooks/useDropZone';
 import { dropzone } from '@/services/DropZoneService';
 import * as credStore from '@/services/credentialStore';
@@ -140,6 +141,37 @@ export function SettingsView() {
               <span className="text-sm text-muted-foreground">Connection</span>
               <span className="text-sm capitalize">{connectionMode}</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Appearance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              {useThemeStore.getState().theme === 'dark' ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+              Appearance
+            </CardTitle>
+            <CardDescription>Switch between dark and light theme</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <span className="text-sm capitalize">{useThemeStore((s) => s.theme)} mode</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => useThemeStore.getState().toggleTheme()}
+            >
+              {useThemeStore((s) => s.theme) === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+              Switch to {useThemeStore((s) => s.theme) === 'dark' ? 'Light' : 'Dark'}
+            </Button>
           </CardContent>
         </Card>
 

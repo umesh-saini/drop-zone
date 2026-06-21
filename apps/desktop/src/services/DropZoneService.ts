@@ -99,7 +99,11 @@ export class DropZoneService {
         existingKeys?.publicKey && existingKeys?.secretKey
           ? { publicKey: existingKeys.publicKey, secretKey: existingKeys.secretKey }
           : generateKeyPair();
-      const name = deviceName || creds?.deviceName || `Desktop ${Math.floor(Math.random() * 1000)}`;
+      const name =
+        deviceName ||
+        creds?.deviceName ||
+        localStorage.getItem('dropzone_device_name') ||
+        `Desktop ${Math.floor(Math.random() * 1000)}`;
       const res = await this.api.register({
         deviceName: name,
         deviceType: 'desktop',
@@ -207,7 +211,7 @@ export class DropZoneService {
             const filePath = response.data.path;
             const stats = await window.electronAPI!.getProperties(filePath);
             const fileName = filePath.split(/[\\/]/).pop() || 'download';
-            
+
             const fileObj = {
               name: fileName,
               size: stats.size,
