@@ -13,7 +13,7 @@ import { Socket } from 'socket.io-client';
  * Receiver accumulates chunk bytes in memory and writes the file on complete.
  */
 
-const CHUNK_SIZE = 64 * 1024; // 64KB
+const CHUNK_SIZE = 3 * 1024 * 21; // 64512 bytes (multiple of 3 for base64)
 
 export interface TransferProgress {
   fileId: string;

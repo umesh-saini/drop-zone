@@ -297,20 +297,20 @@ export function RemoteExplorer({ targetDevice, targetDeviceName }: RemoteExplore
             if (entry.size > 1024 * 512) {
               // Read chunks
               let allBase64 = '';
-              const CHUNK_SIZE = 512 * 1024;
+              const CHUNK_SIZE = 3 * 1024 * 170; // 522240 bytes (multiple of 3 for base64)
               const totalChunks = Math.ceil(entry.size / CHUNK_SIZE);
               for (let i = 0; i < totalChunks; i++) {
                 const offset = i * CHUNK_SIZE;
                 const length = Math.min(CHUNK_SIZE, entry.size - offset);
                 const res = await sendRequest({ type: 'read_file_chunk', path: entry.path, offset, length });
                 if (!res.success) throw new Error(res.error || 'Chunk read failed');
-                allBase64 += res.data.content;
+                allBase64 += res.data.content.replace(/[\r\n]+/g, '');
               }
               setImageBase64(`data:image/${ext};base64,${allBase64}`);
             } else {
               const res = await sendRequest({ type: 'read_file_base64', path: entry.path });
               if (!res.success) throw new Error(res.error || 'Read failed');
-              setImageBase64(`data:image/${ext};base64,${res.data.content}`);
+              setImageBase64(`data:image/${ext};base64,${res.data.content.replace(/[\r\n]+/g, '')}`);
             }
             setViewingFile(entry.name);
             setShowImage(true);
@@ -489,7 +489,21 @@ export function RemoteExplorer({ targetDevice, targetDeviceName }: RemoteExplore
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadRoots}>
           <Home className="h-4 w-4" />
         </Button>
-        <p className="text-xs text-muted-foreground truncate flex-1 font-mono">{currentPath}</p>
+        <p className="text-sm font-medium flex-1 truncate ml-2">
+          {(() => {
+            if (!currentPath) return '';
+            try {
+              if (currentPath.startsWith('content://')) {
+                const decoded = decodeURIComponent(currentPath);
+                const lastPart = decoded.split('/').pop() || '';
+                return lastPart.includes(':') ? lastPart.split(':').pop() || lastPart : lastPart;
+              }
+              return currentPath.split(/[\\/]/).filter(Boolean).pop() || currentPath;
+            } catch {
+              return currentPath;
+            }
+          })()}
+        </p>
         
         {clipboardAction && (
           <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={handlePaste}>

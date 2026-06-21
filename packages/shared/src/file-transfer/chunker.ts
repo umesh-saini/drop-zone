@@ -6,14 +6,14 @@
  * Max chunk size: 256KB (to stay within WebSocket message limits).
  */
 
-/** Default chunk size: 64KB */
-export const DEFAULT_CHUNK_SIZE = 64 * 1024;
+/** Default chunk size: 64512 bytes (multiple of 3) */
+export const DEFAULT_CHUNK_SIZE = 3 * 1024 * 21;
 
-/** Maximum chunk size: 256KB */
-export const MAX_CHUNK_SIZE = 256 * 1024;
+/** Maximum chunk size: 261120 bytes (multiple of 3) */
+export const MAX_CHUNK_SIZE = 3 * 1024 * 85;
 
-/** Minimum chunk size: 16KB */
-export const MIN_CHUNK_SIZE = 16 * 1024;
+/** Minimum chunk size: 15360 bytes (multiple of 3) */
+export const MIN_CHUNK_SIZE = 3 * 1024 * 5;
 
 /**
  * Calculate the number of chunks for a given file size.
@@ -37,12 +37,12 @@ export function calculateOptimalChunkSize(fileSize: number): number {
     return fileSize; // Single chunk for small files
   }
   if (fileSize <= 10 * 1024 * 1024) {
-    return DEFAULT_CHUNK_SIZE; // 64KB
+    return DEFAULT_CHUNK_SIZE; // ~64KB
   }
   if (fileSize <= 100 * 1024 * 1024) {
-    return 128 * 1024; // 128KB
+    return 3 * 1024 * 42; // 129024 bytes (~128KB, multiple of 3)
   }
-  return MAX_CHUNK_SIZE; // 256KB
+  return MAX_CHUNK_SIZE; // ~256KB
 }
 
 /**

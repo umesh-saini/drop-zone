@@ -220,34 +220,25 @@ export function RemoteExplorer({ targetDevice, targetDeviceName }: Props) {
           setLoading(true);
           try {
             if (selectedEntry.size > 1024 * 512) {
-              // For files > 512KB, read in 512KB chunks to avoid socket timeouts
+              // Chunked load for large images
               let allBase64 = '';
-              const CHUNK_SIZE = 512 * 1024;
+              const CHUNK_SIZE = 3 * 1024 * 170; // 522240 bytes (multiple of 3)
               const totalChunks = Math.ceil(selectedEntry.size / CHUNK_SIZE);
               
               for (let i = 0; i < totalChunks; i++) {
                 const offset = i * CHUNK_SIZE;
                 const length = Math.min(CHUNK_SIZE, selectedEntry.size - offset);
-                const res = await dropzone.remoteRequest(targetDevice, { 
-                  type: 'read_file_chunk', 
-                  path: selectedEntry.path,
-                  offset,
-                  length
-                });
-                if (!res.success) throw new Error('Chunk read failed');
-                allBase64 += res.data.content;
+                const res = await dropzone.remoteRequest(targetDevice, { type: 'read_file_chunk', path: selectedEntry.path, offset, length });
+                if (!res.success) throw new Error(res.error || 'Chunk read failed');
+                allBase64 += res.data.content.replace(/[\r\n]+/g, '');
               }
               setImageBase64(`data:image/${ext};base64,${allBase64}`);
-              setShowImage(true);
             } else {
-              const imgRes = await dropzone.remoteRequest(targetDevice, { type: 'read_file_base64', path: selectedEntry.path });
-              if (imgRes.success) {
-                setImageBase64(`data:image/${ext};base64,${imgRes.data.content}`);
-                setShowImage(true);
-              } else {
-                throw new Error('Image read failed');
-              }
+              const res = await dropzone.remoteRequest(targetDevice, { type: 'read_file_base64', path: selectedEntry.path });
+              if (!res.success) throw new Error(res.error || 'Read failed');
+              setImageBase64(`data:image/${ext};base64,${res.data.content.replace(/[\r\n]+/g, '')}`);
             }
+            setShowImage(true);
           } catch (e) {
             Alert.alert('Error', 'Cannot read image. It may be too large or inaccessible.');
           }
