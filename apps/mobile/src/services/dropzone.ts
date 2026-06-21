@@ -139,27 +139,33 @@ class MobileDropZone {
 
     // Auto-capture clipboard when app comes to foreground
     this.startClipboardAutoCapture();
+    // Also do an initial check right away in case we just booted up
+    this.checkClipboardAndSend();
   }
 
   private lastClipboard: string | null = null;
   private appStateListener: any = null;
+
+  private async checkClipboardAndSend(): Promise<void> {
+    try {
+      const Clip = require('expo-clipboard');
+      const text = await Clip.getStringAsync();
+      if (text && text !== this.lastClipboard && text.length < 10 * 1024 * 1024) {
+        this.lastClipboard = text;
+        // Auto-send if clipboard_write permission is granted
+        await this.sendClipboard(text);
+      }
+    } catch {
+      // Silently ignore
+    }
+  }
 
   private startClipboardAutoCapture(): void {
     const { AppState } = require('react-native');
     this.appStateListener = AppState.addEventListener('change', async (state: string) => {
       if (state === 'active') {
         // App just came to foreground — check if clipboard changed
-        try {
-          const Clip = require('expo-clipboard');
-          const text = await Clip.getStringAsync();
-          if (text && text !== this.lastClipboard && text.length < 10 * 1024 * 1024) {
-            this.lastClipboard = text;
-            // Auto-send if clipboard_write permission is granted
-            await this.sendClipboard(text);
-          }
-        } catch {
-          // Silently ignore
-        }
+        await this.checkClipboardAndSend();
       }
     });
   }
@@ -252,6 +258,14 @@ class MobileDropZone {
     if (!secret) return;
     try {
       const plaintext = decrypt(JSON.parse(data.content), secret);
+      
+      // Auto-copy to system clipboard so the user doesn't have to manually copy it
+      try {
+        const Clip = require('expo-clipboard');
+        await Clip.setStringAsync(plaintext);
+        this.lastClipboard = plaintext;
+      } catch (e) {}
+
       this.callbacks.onClipboardReceived?.(plaintext, data.fromDevice);
     } catch (e) {
       console.error('Decrypt failed', e);
