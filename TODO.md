@@ -498,15 +498,15 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 - [x] Device rename (PATCH /devices/me) from Settings with inline edit
 - [x] "Reset this device" / logout (clear creds + re-register)
-- [ ] File transfer accept/reject prompt (currently auto-accepts)
-- [ ] Transfer controls in UI: cancel, pause, resume, retry
-- [ ] Offline queue: buffer clipboard/files when peer offline
+- [ ] Light theme toggle
+- [ ] First-run onboarding: name your device
+<!-- - [ ] File transfer accept/reject prompt (currently auto-accepts) -->
+<!-- - [ ] Transfer controls in UI: cancel, pause, resume, retry -->
+<!-- - [ ] Offline queue: buffer clipboard/files when peer offline
 - [ ] Native notifications: clipboard received, file received
 - [ ] Clipboard history persistence (survive restart)
-- [ ] Multi-file selection + batch send
-- [ ] First-run onboarding: name your device
-- [ ] Reconnect with exponential backoff + connection lost banner
-- [ ] Light theme toggle
+- [ ] Multi-file selection + batch send -->
+<!-- - [ ] Reconnect with exponential backoff + connection lost banner -->
 
 ---
 

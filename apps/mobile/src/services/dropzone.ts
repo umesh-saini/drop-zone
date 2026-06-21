@@ -129,6 +129,10 @@ class MobileDropZone {
       this.refreshPermissions(d.pairingId);
       this.callbacks.onPermissionUpdate?.(d.pairingId);
     });
+    this.socket.on('remote:response', (d: any) => {
+      const handler = this.remoteResponseHandlers.get(d.response?.requestId);
+      if (handler) handler(d.response);
+    });
 
     // Wire file transfer
     this.fileTransfer.attach(this.socket, this.credentials.deviceCode);
@@ -258,7 +262,7 @@ class MobileDropZone {
     if (!secret) return;
     try {
       const plaintext = decrypt(JSON.parse(data.content), secret);
-      
+
       // Auto-copy to system clipboard so the user doesn't have to manually copy it
       try {
         const Clip = require('expo-clipboard');
@@ -311,6 +315,41 @@ class MobileDropZone {
 
   getPairings(): PairingInfo[] {
     return this.pairings;
+  }
+
+  /**
+   * Send a remote file access request to another device.
+   */
+  sendRemoteRequest(toDevice: string, request: any): void {
+    this.socket?.emit('remote:request', { toDevice, request });
+  }
+
+  /**
+   * Pending remote response handlers (request-reply pattern).
+   */
+  private remoteResponseHandlers = new Map<string, (response: any) => void>();
+
+  /**
+   * Send a remote request and wait for a response (promise-based).
+   */
+  remoteRequest(toDevice: string, request: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const fullReq = { ...request, requestId };
+
+      const timeout = setTimeout(() => {
+        this.remoteResponseHandlers.delete(requestId);
+        reject(new Error('Request timed out'));
+      }, 10000);
+
+      this.remoteResponseHandlers.set(requestId, (response) => {
+        clearTimeout(timeout);
+        this.remoteResponseHandlers.delete(requestId);
+        resolve(response);
+      });
+
+      this.sendRemoteRequest(toDevice, fullReq);
+    });
   }
 
   private startHeartbeat(): void {
