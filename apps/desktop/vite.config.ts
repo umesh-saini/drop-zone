@@ -5,6 +5,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  base: './', // Required for Electron file:// loading
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -13,8 +14,6 @@ export default defineConfig({
       '@dropzone/protocol': path.resolve(__dirname, '../../packages/protocol/src'),
     },
   },
-  // Prevent vite from obscuring rust errors
-  clearScreen: false,
   server: {
     port: 1420,
     strictPort: true,

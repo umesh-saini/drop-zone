@@ -1,34 +1,34 @@
 import type { ClipboardAdapter, ClipboardChangeEvent } from '@dropzone/shared';
 
 /**
- * Tauri-specific clipboard adapter.
+ * Electron clipboard adapter.
  *
- * In Tauri (production): uses @tauri-apps/plugin-clipboard-manager which
- * reads the system clipboard regardless of window focus.
+ * Uses Electron's clipboard API via the preload bridge (window.electronAPI).
+ * Falls back to navigator.clipboard for plain browser dev mode.
  *
- * In browser dev mode: uses navigator.clipboard with a focus listener +
- * polling when focused. navigator.clipboard.readText() requires focus.
+ * Electron's clipboard.readText() works regardless of window focus — true
+ * global clipboard capture. Polls every 500ms.
  */
 export class TauriClipboardAdapter implements ClipboardAdapter {
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private lastContent: string | null = null;
   private monitoring = false;
   private intervalMs: number;
-  private isTauri: boolean;
   private onChange: ((event: ClipboardChangeEvent) => void) | null = null;
   private focusHandler: (() => void) | null = null;
 
   constructor(intervalMs: number = 500) {
     this.intervalMs = intervalMs;
-    // Detect if we're running inside Tauri
-    this.isTauri = typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+  }
+
+  private get isElectron(): boolean {
+    return !!window.electronAPI;
   }
 
   async read(): Promise<string | null> {
-    if (this.isTauri) {
+    if (this.isElectron) {
       try {
-        const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
-        const text = await readText();
+        const text = await window.electronAPI!.clipboardRead();
         return text || null;
       } catch {
         return null;
@@ -40,23 +40,21 @@ export class TauriClipboardAdapter implements ClipboardAdapter {
         return await navigator.clipboard.readText();
       }
     } catch {
-      // Permission denied or not focused
+      // not focused or permission denied
     }
     return null;
   }
 
   async write(text: string): Promise<void> {
     this.lastContent = text; // Prevent echo
-    if (this.isTauri) {
+    if (this.isElectron) {
       try {
-        const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
-        await writeText(text);
+        await window.electronAPI!.clipboardWrite(text);
         return;
       } catch {
         // fall through
       }
     }
-    // Browser fallback
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(text);
@@ -71,25 +69,19 @@ export class TauriClipboardAdapter implements ClipboardAdapter {
     this.monitoring = true;
     this.onChange = onChange;
 
-    // Initialize with current content
-    this.read().then((content) => {
-      this.lastContent = content;
+    // Initialize
+    this.read().then((c) => {
+      this.lastContent = c;
     });
 
-    // Poll continuously (works in Tauri regardless of focus)
+    // Poll continuously — works in Electron regardless of focus
     this.pollInterval = setInterval(() => this.poll(), this.intervalMs);
 
-    // In browser dev: also check on window focus (since polling only works when focused)
-    if (!this.isTauri) {
-      this.focusHandler = () => {
-        // Short delay so the clipboard has time to update
-        setTimeout(() => this.poll(), 100);
-      };
+    // Browser fallback: also check on focus + copy events
+    if (!this.isElectron) {
+      this.focusHandler = () => setTimeout(() => this.poll(), 100);
       window.addEventListener('focus', this.focusHandler);
-      // Also check on copy events in this window
-      document.addEventListener('copy', () => {
-        setTimeout(() => this.poll(), 100);
-      });
+      document.addEventListener('copy', () => setTimeout(() => this.poll(), 100));
     }
   }
 
@@ -98,10 +90,7 @@ export class TauriClipboardAdapter implements ClipboardAdapter {
       const current = await this.read();
       if (current !== null && current !== this.lastContent) {
         this.lastContent = current;
-        this.onChange?.({
-          content: current,
-          timestamp: Date.now(),
-        });
+        this.onChange?.({ content: current, timestamp: Date.now() });
       }
     } catch {
       // silently ignore

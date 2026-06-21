@@ -1,57 +1,27 @@
 import type { FileAdapter, FilePickerOptions, PickedFile } from '@dropzone/shared';
 
 /**
- * Tauri-specific file adapter.
+ * Electron file adapter.
  *
- * Uses Tauri's file system APIs for native file operations.
- * Requires: @tauri-apps/plugin-dialog, @tauri-apps/plugin-fs
+ * Uses Electron's dialog + fs APIs via the preload bridge (window.electronAPI).
+ * Falls back to HTML <input type=file> for browser dev mode.
  */
 export class TauriFileAdapter implements FileAdapter {
-  private saveDir: string | null = null;
-
-  private isTauri = typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
-  // In-memory file store for browser dev mode
   private browserFiles = new Map<string, File>();
 
-  async pickFiles(options?: FilePickerOptions): Promise<PickedFile[]> {
-    if (this.isTauri) {
-      return this.pickFilesTauri(options);
-    }
-    return this.pickFilesBrowser(options);
+  private get isElectron(): boolean {
+    return !!window.electronAPI;
   }
 
-  private async pickFilesTauri(options?: FilePickerOptions): Promise<PickedFile[]> {
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const result = await open({
-        multiple: options?.multiple ?? false,
-        filters: options?.accept ? [{ name: 'Files', extensions: options.accept }] : undefined,
+  async pickFiles(options?: FilePickerOptions): Promise<PickedFile[]> {
+    if (this.isElectron) {
+      const files = await window.electronAPI!.openFileDialog({
+        multiple: options?.multiple,
       });
-
-      if (!result) return [];
-
-      const paths = Array.isArray(result) ? result : [result];
-      const files: PickedFile[] = [];
-
-      for (const path of paths) {
-        const { stat } = await import('@tauri-apps/plugin-fs');
-        const info = await stat(path);
-        const name = path.split('/').pop() || path.split('\\').pop() || 'unknown';
-
-        files.push({
-          name,
-          size: info.size,
-          type: getMimeType(name),
-          path,
-          lastModified: info.mtime ? new Date(info.mtime).getTime() : undefined,
-        });
-      }
-
       return files;
-    } catch (e) {
-      console.error('[FileAdapter] Tauri pickFiles failed:', e);
-      return [];
     }
+    // Browser fallback
+    return this.pickFilesBrowser(options);
   }
 
   private pickFilesBrowser(options?: FilePickerOptions): Promise<PickedFile[]> {
@@ -60,15 +30,14 @@ export class TauriFileAdapter implements FileAdapter {
       input.type = 'file';
       input.multiple = options?.multiple ?? false;
       input.onchange = () => {
-        const fileList = Array.from(input.files || []);
-        const picked: PickedFile[] = fileList.map((f) => {
-          const path = `browser://${f.name}-${Date.now()}`;
-          this.browserFiles.set(path, f);
+        const picked = Array.from(input.files || []).map((f) => {
+          const p = `browser://${f.name}-${Date.now()}`;
+          this.browserFiles.set(p, f);
           return {
             name: f.name,
             size: f.size,
             type: f.type || 'application/octet-stream',
-            path,
+            path: p,
             lastModified: f.lastModified,
           };
         });
@@ -80,105 +49,55 @@ export class TauriFileAdapter implements FileAdapter {
   }
 
   async readChunk(filePath: string, offset: number, length: number): Promise<Uint8Array> {
-    // Browser dev mode: read from in-memory File object
+    // Browser dev: in-memory File
     const browserFile = this.browserFiles.get(filePath);
     if (browserFile) {
-      const slice = browserFile.slice(offset, offset + length);
-      const buf = await slice.arrayBuffer();
+      const buf = await browserFile.slice(offset, offset + length).arrayBuffer();
       return new Uint8Array(buf);
     }
-    // Tauri native
-    const { readFile } = await import('@tauri-apps/plugin-fs');
-    const fullData = await readFile(filePath);
-    return fullData.slice(offset, offset + length);
+    // Electron: IPC returns base64
+    const base64 = await window.electronAPI!.readChunk(filePath, offset, length);
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   }
 
   async getFileSize(filePath: string): Promise<number> {
     const browserFile = this.browserFiles.get(filePath);
     if (browserFile) return browserFile.size;
-    const { stat } = await import('@tauri-apps/plugin-fs');
-    const info = await stat(filePath);
-    return info.size;
+    return window.electronAPI!.getFileSize(filePath);
   }
 
   async writeChunk(filePath: string, offset: number, data: Uint8Array): Promise<void> {
-    const { writeFile, readFile } = await import('@tauri-apps/plugin-fs');
-    // Read existing file, splice in chunk, write back
-    // For production: use a Rust command for seek-based writing
-    let existing: Uint8Array;
-    try {
-      existing = await readFile(filePath);
-    } catch {
-      existing = new Uint8Array(offset + data.length);
-    }
-
-    const result = new Uint8Array(Math.max(existing.length, offset + data.length));
-    result.set(existing);
-    result.set(data, offset);
-    await writeFile(filePath, result);
+    if (!this.isElectron) return; // browser can't write to disk
+    // Convert Uint8Array to base64
+    let binary = '';
+    for (let i = 0; i < data.length; i++) binary += String.fromCharCode(data[i]);
+    const base64 = btoa(binary);
+    await window.electronAPI!.writeChunk(filePath, offset, base64);
   }
 
-  async createFile(filePath: string, size: number): Promise<void> {
-    const { writeFile } = await import('@tauri-apps/plugin-fs');
-    // Create empty file (will be filled by writeChunk)
-    await writeFile(filePath, new Uint8Array(0));
+  async createFile(filePath: string, _size: number): Promise<void> {
+    if (!this.isElectron) return;
+    // Just write empty to create it
+    await window.electronAPI!.writeChunk(filePath, 0, '');
   }
 
   async getSaveDirectory(): Promise<string> {
-    if (this.saveDir) return this.saveDir;
-    try {
-      const { downloadDir } = await import('@tauri-apps/api/path');
-      this.saveDir = await downloadDir();
-      return this.saveDir;
-    } catch {
-      return '/tmp/dropzone';
+    if (this.isElectron) {
+      return window.electronAPI!.getDownloadsDir();
     }
+    return '/tmp/dropzone';
   }
 
   async getReceivePath(fileName: string): Promise<string> {
     const dir = await this.getSaveDirectory();
-    const separator = dir.includes('\\') ? '\\' : '/';
-    return `${dir}${separator}${fileName}`;
+    return `${dir}/${fileName}`;
   }
 
-  async deleteFile(filePath: string): Promise<void> {
-    try {
-      const { remove } = await import('@tauri-apps/plugin-fs');
-      await remove(filePath);
-    } catch {
-      // Silently ignore
-    }
+  async deleteFile(_filePath: string): Promise<void> {
+    // Not implemented for now
   }
 
-  async fileExists(filePath: string): Promise<boolean> {
-    try {
-      const { exists } = await import('@tauri-apps/plugin-fs');
-      return await exists(filePath);
-    } catch {
-      return false;
-    }
+  async fileExists(_filePath: string): Promise<boolean> {
+    return false;
   }
-}
-
-function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const mimeMap: Record<string, string> = {
-    pdf: 'application/pdf',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    txt: 'text/plain',
-    html: 'text/html',
-    css: 'text/css',
-    js: 'application/javascript',
-    ts: 'application/typescript',
-    json: 'application/json',
-    zip: 'application/zip',
-    mp4: 'video/mp4',
-    mp3: 'audio/mpeg',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  };
-  return mimeMap[ext] || 'application/octet-stream';
 }

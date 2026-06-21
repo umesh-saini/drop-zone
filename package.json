@@ -4,7 +4,11 @@
   "private": true,
   "description": "A privacy-first, cross-platform utility that bridges your phone and computer",
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@dropzone/server --filter=desktop --filter=web",
+    "dev:all": "turbo run dev",
+    "dev:server": "turbo run dev --filter=@dropzone/server",
+    "dev:desktop": "turbo run dev --filter=desktop",
+    "dev:web": "turbo run dev --filter=web",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
