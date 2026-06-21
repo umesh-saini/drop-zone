@@ -1,5 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { Socket } from 'socket.io-client';
 
 /**
@@ -37,6 +40,7 @@ interface RecvState {
   fileId: string;
   fileName: string;
   fileSize: number;
+  fileType: string;
   totalChunks: number;
   fromDevice: string;
   chunks: Map<number, string>; // base64 strings
@@ -79,16 +83,13 @@ export class FileTransfer {
 
     let result;
     try {
-      result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+      result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: false });
     } catch (e: any) {
       throw new Error('File picker failed: ' + (e.message || String(e)));
     }
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
 
-    // Read the file directly from the picker URI.
-    // On Expo Go, copyAsync may fail due to Android scoped storage,
-    // but readAsStringAsync with the content URI works.
     const fileId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const size = asset.size || 0;
     const totalChunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
@@ -139,38 +140,31 @@ export class FileTransfer {
     });
 
     try {
-      // Read entire file as base64.
-      // Try direct read first; if it fails (Expo Go scoped storage issue),
-      // fall back to fetch+blob which handles content URIs on Android.
-      let fullBase64: string;
+      // Copy to a temporary file we control to avoid content:// read limits
+      const tempUri = FileSystem.documentDirectory + `temp-${state.fileId}`;
+      let targetUri = state.filePath;
+      let usedTemp = false;
+
       try {
-        fullBase64 = await FileSystem.readAsStringAsync(state.filePath, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-      } catch {
-        // Fallback: use fetch to read the file as a blob, then convert to base64
-        console.log('[FileTransfer] Direct read failed, using fetch fallback...');
-        const response = await fetch(state.filePath);
-        const blob = await response.blob();
-        fullBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            // Strip "data:...;base64," prefix
-            const base64 = dataUrl.split(',')[1] || '';
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        await FileSystem.copyAsync({ from: state.filePath, to: tempUri });
+        targetUri = tempUri;
+        usedTemp = true;
+      } catch (e) {
+        console.warn('[FileTransfer] copyAsync failed, reading directly from original path', e);
       }
 
-      // Split into chunks and send
-      const chunkSizeB64 = Math.ceil((CHUNK_SIZE * 4) / 3); // base64 chars per chunk
-      const totalChunks = Math.max(1, Math.ceil(fullBase64.length / chunkSizeB64));
+      const totalChunks = state.totalChunks;
 
       for (let i = 0; i < totalChunks; i++) {
-        const chunkData = fullBase64.slice(i * chunkSizeB64, (i + 1) * chunkSizeB64);
+        const position = i * CHUNK_SIZE;
+        const length = Math.min(CHUNK_SIZE, state.fileSize - position);
+
+        // Read just this chunk natively
+        const chunkData = await FileSystem.readAsStringAsync(targetUri, {
+          encoding: FileSystem.EncodingType.Base64,
+          position,
+          length,
+        });
 
         this.socket?.emit('file:chunk', {
           fileId: state.fileId,
@@ -192,6 +186,11 @@ export class FileTransfer {
 
         // Yield to avoid blocking
         if (i % 5 === 0) await new Promise((r) => setTimeout(r, 10));
+      }
+
+      // Cleanup temp file if we used it
+      if (usedTemp) {
+        await FileSystem.deleteAsync(tempUri, { idempotent: true });
       }
 
       this.socket?.emit('file:complete', { fileId: state.fileId, toDevice: state.toDevice });
@@ -236,6 +235,7 @@ export class FileTransfer {
     fileId: string;
     fileName: string;
     fileSize: number;
+    fileType?: string;
     totalChunks: number;
     fromDevice: string;
   }): void {
@@ -243,6 +243,7 @@ export class FileTransfer {
       fileId: d.fileId,
       fileName: d.fileName,
       fileSize: d.fileSize,
+      fileType: d.fileType || 'application/octet-stream',
       totalChunks: d.totalChunks,
       fromDevice: d.fromDevice,
       chunks: new Map(),
@@ -327,17 +328,56 @@ export class FileTransfer {
       }
       const finalBase64 = btoa(binary);
 
-      const dir = FileSystem.documentDirectory + 'dropzone/';
-      const dirInfo = await FileSystem.getInfoAsync(dir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-      }
-      const uri = dir + state.fileName;
-      await FileSystem.writeAsStringAsync(uri, finalBase64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      let finalUri = '';
 
-      console.log('[FileTransfer] Saved to:', uri);
+      if (Platform.OS === 'android') {
+        try {
+          let directoryUri = await SecureStore.getItemAsync('savedDirectoryUri');
+          let granted = !!directoryUri;
+
+          if (!granted) {
+            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+              directoryUri = permissions.directoryUri;
+              await SecureStore.setItemAsync('savedDirectoryUri', directoryUri);
+              granted = true;
+            }
+          }
+
+          if (granted && directoryUri) {
+            finalUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              directoryUri,
+              state.fileName,
+              state.fileType
+            );
+            await FileSystem.writeAsStringAsync(finalUri, finalBase64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          }
+        } catch (e) {
+          console.error('[FileTransfer] SAF failed, falling back:', e);
+          // If it failed (e.g. user revoked permission or directory deleted), clear it for next time
+          try { await SecureStore.deleteItemAsync('savedDirectoryUri'); } catch (_) {}
+        }
+      }
+
+      if (!finalUri) {
+        const dir = FileSystem.documentDirectory + 'dropzone/';
+        const dirInfo = await FileSystem.getInfoAsync(dir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        }
+        finalUri = dir + state.fileName;
+        await FileSystem.writeAsStringAsync(finalUri, finalBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(finalUri, { dialogTitle: 'Save received file' });
+        }
+      }
+
+      console.log('[FileTransfer] Saved to:', finalUri);
 
       this.emitProgress({
         fileId: state.fileId,
@@ -348,7 +388,7 @@ export class FileTransfer {
         progress: 100,
         fromDevice: state.fromDevice,
       });
-      this.onSaved?.(state.fileName, uri);
+      this.onSaved?.(state.fileName, finalUri);
     } catch (err: any) {
       console.error('[FileTransfer] Save failed:', err);
       this.emitProgress({

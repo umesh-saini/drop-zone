@@ -20,7 +20,9 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,7 +33,8 @@
         {
           "cameraPermission": "DropZone uses the camera to scan QR codes for pairing devices."
         }
-      ]
+      ],
+      "expo-sharing"
     ]
   }
 }

@@ -266,6 +266,9 @@ export class TransferManager {
 
     if (state.status !== 'in_progress') return;
 
+    // Track synchronous receipt before async processing
+    (state as any)._receivedChunksCount = ((state as any)._receivedChunksCount || 0) + 1;
+
     // Validate chunk
     const validation = validateChunk(
       chunk.chunkIndex,
@@ -296,6 +299,15 @@ export class TransferManager {
       state.lastActivityAt = Date.now();
 
       this.emitProgress(state);
+
+      // If this was the final chunk finishing its write, and the complete signal was already received, finalize.
+      if ((state as any)._completeSignalReceived && state.completedChunks.size === state.totalChunks) {
+        if (state.status !== 'completed') {
+          state.status = 'completed';
+          const finalSavePath = (state as any)._savePath as string;
+          this.handlers.onCompleted?.(chunk.fileId, finalSavePath);
+        }
+      }
     } catch (error: any) {
       state.status = 'failed';
       state.error = `Failed to write chunk ${chunk.chunkIndex}: ${error.message}`;
@@ -310,16 +322,25 @@ export class TransferManager {
     const state = this.transfers.get(fileId);
     if (!state || state.direction !== 'receive') return;
 
-    if (state.completedChunks.size === state.totalChunks) {
-      state.status = 'completed';
-      const savePath = (state as any)._savePath as string;
-      this.handlers.onCompleted?.(fileId, savePath);
-    } else {
-      // Not all chunks received — request missing ones (future: resume)
+    (state as any)._completeSignalReceived = true;
+
+    // Check if network delivered all chunks
+    const receivedCount = (state as any)._receivedChunksCount || 0;
+    if (receivedCount < state.totalChunks) {
+      // Genuinely missing chunks over the network
       state.status = 'failed';
-      state.error = `Incomplete: ${state.completedChunks.size}/${state.totalChunks} chunks`;
+      state.error = `Incomplete network delivery: ${receivedCount}/${state.totalChunks} chunks`;
       this.handlers.onFailed?.(fileId, state.error);
+    } else if (state.completedChunks.size === state.totalChunks) {
+      // All chunks written
+      if (state.status !== 'completed') {
+        state.status = 'completed';
+        const savePath = (state as any)._savePath as string;
+        this.handlers.onCompleted?.(fileId, savePath);
+      }
     }
+    // Otherwise, all chunks are received but some are still writing to disk.
+    // They will trigger completion themselves when they finish.
   }
 
   /**
