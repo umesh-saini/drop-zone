@@ -86,24 +86,16 @@ export class FileTransfer {
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
 
-    // Copy the picked file to a guaranteed-readable location in our cache
-    // (Expo Go's DocumentPicker cache may have permission issues)
-    const cacheDir = FileSystem.cacheDirectory + 'dropzone-send/';
-    const cacheDirInfo = await FileSystem.getInfoAsync(cacheDir);
-    if (!cacheDirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
-    }
-    const localUri = cacheDir + asset.name;
-    await FileSystem.copyAsync({ from: asset.uri, to: localUri });
-
+    // Read the file directly from the picker URI.
+    // On Expo Go, copyAsync may fail due to Android scoped storage,
+    // but readAsStringAsync with the content URI works.
     const fileId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const fileInfo = await FileSystem.getInfoAsync(localUri);
-    const size = (fileInfo as any).size || asset.size || 0;
+    const size = asset.size || 0;
     const totalChunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
 
     const state: SendState = {
       fileId,
-      filePath: localUri,
+      filePath: asset.uri,
       fileName: asset.name,
       fileSize: size,
       fileType: asset.mimeType || 'application/octet-stream',
@@ -147,10 +139,31 @@ export class FileTransfer {
     });
 
     try {
-      // Read entire file as base64 (expo-file-system doesn't support position/length)
-      const fullBase64 = await FileSystem.readAsStringAsync(state.filePath, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Read entire file as base64.
+      // Try direct read first; if it fails (Expo Go scoped storage issue),
+      // fall back to fetch+blob which handles content URIs on Android.
+      let fullBase64: string;
+      try {
+        fullBase64 = await FileSystem.readAsStringAsync(state.filePath, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } catch {
+        // Fallback: use fetch to read the file as a blob, then convert to base64
+        console.log('[FileTransfer] Direct read failed, using fetch fallback...');
+        const response = await fetch(state.filePath);
+        const blob = await response.blob();
+        fullBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result as string;
+            // Strip "data:...;base64," prefix
+            const base64 = dataUrl.split(',')[1] || '';
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
 
       // Split into chunks and send
       const chunkSizeB64 = Math.ceil((CHUNK_SIZE * 4) / 3); // base64 chars per chunk
