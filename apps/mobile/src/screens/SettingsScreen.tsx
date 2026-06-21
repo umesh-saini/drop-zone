@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { useStore } from '../store';
 import { reconnectDropZone } from '../hooks/useDropZone';
+import { dropzone } from '../services/dropzone';
+import * as storage from '../services/storage';
+import * as SecureStore from 'expo-secure-store';
 
 function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
@@ -42,6 +45,8 @@ const fmt = (code: string | null) =>
 export function SettingsScreen() {
   const { deviceCode, deviceName, connected } = useStore();
   const [reconnecting, setReconnecting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState(deviceName || '');
 
   const handleReconnect = async () => {
     setReconnecting(true);
@@ -53,6 +58,62 @@ export function SettingsScreen() {
     } finally {
       setReconnecting(false);
     }
+  };
+
+  const handleRename = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      const { api } = dropzone;
+      const res = await api.updateMe({ deviceName: trimmed });
+      if (res.success) {
+        useStore.getState().setDevice(deviceCode!, trimmed);
+        // Update stored credentials
+        const creds = await storage.loadCredentials();
+        if (creds) {
+          creds.deviceName = trimmed;
+          await storage.saveCredentials(creds);
+        }
+        setRenaming(false);
+        Alert.alert('Renamed', `Device name updated to "${trimmed}"`);
+      } else {
+        Alert.alert('Failed', res.error || 'Could not rename');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleReset = () => {
+    Alert.alert(
+      'Reset Device',
+      'This will delete all credentials and pairings. You will need to re-pair with all devices.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear all stored data
+              await SecureStore.deleteItemAsync('dropzone_credentials');
+              await SecureStore.deleteItemAsync('dropzone_secrets');
+            } catch {
+              // Might fail if using memory fallback — that's fine
+            }
+            // Disconnect and reload (Expo reload)
+            dropzone.disconnect();
+            const { Updates } = require('expo');
+            try {
+              await Updates.reloadAsync();
+            } catch {
+              // If Updates not available (dev), just reinitialize
+              Alert.alert('Reset complete', 'Please restart the app');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -86,8 +147,43 @@ export function SettingsScreen() {
           </Text>
         </Section>
 
+        {/* Device with rename */}
         <Section icon="person-outline" title="Device">
-          <Row label="Name" value={deviceName || 'Not set'} />
+          {renaming ? (
+            <View style={styles.renameRow}>
+              <TextInput
+                value={newName}
+                onChangeText={setNewName}
+                style={styles.renameInput}
+                autoFocus
+                placeholder="Device name"
+                placeholderTextColor={colors.mutedForeground}
+                onSubmitEditing={handleRename}
+              />
+              <Button
+                label="Save"
+                style={{ paddingHorizontal: spacing.md }}
+                onPress={handleRename}
+              />
+              <Pressable onPress={() => setRenaming(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Name</Text>
+              <Pressable
+                style={styles.nameBtn}
+                onPress={() => {
+                  setNewName(deviceName || '');
+                  setRenaming(true);
+                }}
+              >
+                <Text style={styles.rowValue}>{deviceName || 'Not set'}</Text>
+                <Ionicons name="pencil-outline" size={14} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          )}
           <Row label="Code" value={fmt(deviceCode)} />
           <Row
             label="Status"
@@ -106,6 +202,18 @@ export function SettingsScreen() {
           <Row label="Version" value="0.1.0" />
           <Row label="Platform" value="Mobile (Expo)" />
         </Section>
+
+        {/* Danger Zone */}
+        <Card style={[styles.section, styles.dangerCard]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="warning-outline" size={16} color={colors.destructive} />
+            <Text style={[styles.sectionTitle, { color: colors.destructive }]}>Danger Zone</Text>
+          </View>
+          <Text style={styles.hint}>
+            Reset this device identity. You will lose all pairings and need to re-pair.
+          </Text>
+          <Button label="Reset Device" variant="outline" onPress={handleReset} />
+        </Card>
       </ScrollView>
     </View>
   );
@@ -127,4 +235,17 @@ const styles = StyleSheet.create({
   connStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dot: { width: 10, height: 10, borderRadius: 5 },
   hint: { fontSize: fontSize.xs, color: colors.mutedForeground },
+  nameBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  renameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  renameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.foreground,
+    fontSize: fontSize.sm,
+  },
+  dangerCard: { borderColor: colors.destructive + '4d' },
 });

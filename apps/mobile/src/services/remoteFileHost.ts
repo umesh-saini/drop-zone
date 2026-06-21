@@ -1,131 +1,185 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as SecureStore from 'expo-secure-store';
 
-/**
- * Mobile remote file host — responds to browse requests from paired devices.
- *
- * Exposes accessible directories on the phone:
- * - Documents (app document directory)
- * - Cache (app cache directory)
- * - DropZone received files
- *
- * On Android/iOS, apps can only access their own sandboxed directories.
- * For broader access, a dev build with SAF or MediaLibrary would be needed.
- */
-
-interface RemoteRequest {
+export interface RemoteRequest {
   requestId: string;
-  type: 'list_roots' | 'list_directory' | 'download_file';
+  type: string;
   path?: string;
+  destPath?: string;
+  content?: string;
+  offset?: number;
+  length?: number;
 }
 
-interface RemoteResponse {
+export interface RemoteResponse {
   requestId: string;
   success: boolean;
-  error?: string;
   data?: any;
-}
-
-interface FileEntry {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  size: number;
-  lastModified: number;
-  mimeType?: string;
+  error?: string;
 }
 
 export async function handleRemoteRequest(request: RemoteRequest): Promise<RemoteResponse> {
   try {
     switch (request.type) {
       case 'list_roots':
-        return handleListRoots(request.requestId);
+        return await handleListRoots(request.requestId);
       case 'list_directory':
         return await handleListDirectory(request.requestId, request.path || '');
+      case 'get_properties':
+        return await handleGetProperties(request.requestId, request.path || '');
+      case 'read_file':
+        return await handleReadFile(request.requestId, request.path || '');
+      case 'read_file_base64':
+        return await handleReadFileBase64(request.requestId, request.path || '');
+      case 'read_file_chunk':
+        return await handleReadFileChunk(request.requestId, request.path || '', request.offset || 0, request.length || 0);
+      case 'delete':
+        return await handleDelete(request.requestId, request.path || '');
+      case 'download_file':
+        return { requestId: request.requestId, success: true, data: { path: request.path } };
       default:
         return { requestId: request.requestId, success: false, error: 'Unknown request type' };
     }
   } catch (err: any) {
-    return { requestId: request.requestId, success: false, error: err.message };
+    console.error(`[RemoteFileHost] Request ${request.type} failed:`, err);
+    return { requestId: request.requestId, success: false, error: err.message || String(err) };
   }
 }
 
-function handleListRoots(requestId: string): RemoteResponse {
-  const roots = [
-    { label: 'Documents', path: FileSystem.documentDirectory || '' },
-    { label: 'Cache', path: FileSystem.cacheDirectory || '' },
-    { label: 'DropZone Files', path: (FileSystem.documentDirectory || '') + 'dropzone/' },
-  ].filter((r) => r.path.length > 0);
+async function handleListRoots(requestId: string): Promise<RemoteResponse> {
+  const roots = [];
+
+  const docDir = FileSystem.documentDirectory;
+  if (docDir) {
+    const p = docDir.endsWith('/') ? docDir.slice(0, -1) : docDir;
+    roots.push({ label: 'App Documents', path: p });
+  }
+
+  const cacheDir = FileSystem.cacheDirectory;
+  if (cacheDir) {
+    const p = cacheDir.endsWith('/') ? cacheDir.slice(0, -1) : cacheDir;
+    roots.push({ label: 'App Cache', path: p });
+  }
+
+  try {
+    const savedSafUri = await SecureStore.getItemAsync('savedDirectoryUri');
+    if (savedSafUri) {
+      let label = 'Shared Folder';
+      try {
+        const decoded = decodeURIComponent(savedSafUri);
+        const parts = decoded.split('/');
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.includes(':')) {
+          label = lastPart.split(':')[1] || lastPart;
+        } else {
+          label = lastPart;
+        }
+      } catch (e) {}
+      
+      roots.push({ label: `📱 ${label}`, path: savedSafUri });
+    }
+  } catch (err) {}
 
   return { requestId, success: true, data: roots };
 }
 
 async function handleListDirectory(requestId: string, dirPath: string): Promise<RemoteResponse> {
-  // Security: block path traversal
-  if (dirPath.includes('..')) {
-    return { requestId, success: false, error: 'Path traversal not allowed' };
-  }
-
-  // Ensure the path is within allowed directories
-  const docDir = FileSystem.documentDirectory || '';
-  const cacheDir = FileSystem.cacheDirectory || '';
-  if (!dirPath.startsWith(docDir) && !dirPath.startsWith(cacheDir)) {
-    return { requestId, success: false, error: 'Access denied: path outside allowed directories' };
-  }
-
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(dirPath);
-    if (!dirInfo.exists) {
-      return { requestId, success: false, error: 'Directory not found' };
+  const entries: any[] = [];
+  
+  if (dirPath.startsWith('content://')) {
+    if (!FileSystem.StorageAccessFramework) {
+       return { requestId, success: false, error: 'StorageAccessFramework not supported on this device/version' };
     }
-
-    const items = await FileSystem.readDirectoryAsync(dirPath);
-    const entries: FileEntry[] = [];
-
-    for (const name of items) {
-      const fullPath = dirPath.endsWith('/') ? dirPath + name : dirPath + '/' + name;
+    const childrenUris = await FileSystem.StorageAccessFramework.readDirectoryAsync(dirPath);
+    for (const uri of childrenUris) {
       try {
-        const info = await FileSystem.getInfoAsync(fullPath);
+        const info = await FileSystem.getInfoAsync(uri);
+        let name = 'Unknown';
+        try {
+          const decoded = decodeURIComponent(uri);
+          const parts = decoded.split('/');
+          const lastPart = parts[parts.length - 1];
+          if (lastPart.includes(':')) {
+            name = lastPart.split(':').pop() || lastPart;
+          } else {
+            name = lastPart;
+          }
+        } catch (e) {}
+
         entries.push({
           name,
-          path: fullPath,
-          isDirectory: info.isDirectory || false,
-          size: (info as any).size || 0,
-          lastModified: (info as any).modificationTime
-            ? (info as any).modificationTime * 1000
-            : Date.now(),
-          mimeType: info.isDirectory ? undefined : guessMimeType(name),
+          path: uri,
+          isDirectory: info.isDirectory,
+          size: info.exists ? info.size : 0,
+          lastModified: info.exists ? info.modificationTime * 1000 : 0,
         });
-      } catch {
-        // Skip files we can't stat
-      }
+      } catch (e) {}
     }
-
-    // Sort: folders first, then alphabetical
-    entries.sort((a, b) => {
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-    return { requestId, success: true, data: entries };
-  } catch (err: any) {
-    return { requestId, success: false, error: 'Failed to read directory: ' + err.message };
+  } else {
+    const dir = dirPath.endsWith('/') ? dirPath : dirPath + '/';
+    const children = await FileSystem.readDirectoryAsync(dir);
+    
+    for (const child of children) {
+      try {
+        const childPath = dir + child;
+        const info = await FileSystem.getInfoAsync(childPath);
+        entries.push({
+          name: child,
+          path: childPath,
+          isDirectory: info.isDirectory,
+          size: info.exists ? info.size : 0,
+          lastModified: info.exists ? info.modificationTime * 1000 : 0,
+        });
+      } catch (e) {}
+    }
   }
+
+  return { requestId, success: true, data: entries };
 }
 
-function guessMimeType(name: string): string {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  const map: Record<string, string> = {
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    pdf: 'application/pdf',
-    txt: 'text/plain',
-    json: 'application/json',
-    mp4: 'video/mp4',
-    mp3: 'audio/mpeg',
-    zip: 'application/zip',
+async function handleGetProperties(requestId: string, filePath: string): Promise<RemoteResponse> {
+  const info = await FileSystem.getInfoAsync(filePath);
+  if (!info.exists) {
+    return { requestId, success: false, error: 'File not found' };
+  }
+  return {
+    requestId,
+    success: true,
+    data: {
+      size: info.size,
+      isDirectory: info.isDirectory,
+      modified: info.modificationTime * 1000,
+    },
   };
-  return map[ext] || 'application/octet-stream';
+}
+
+async function handleReadFile(requestId: string, filePath: string): Promise<RemoteResponse> {
+  const content = await FileSystem.readAsStringAsync(filePath, { encoding: FileSystem.EncodingType.UTF8 });
+  return { requestId, success: true, data: { content } };
+}
+
+async function handleReadFileBase64(requestId: string, filePath: string): Promise<RemoteResponse> {
+  const content = await FileSystem.readAsStringAsync(filePath, { encoding: FileSystem.EncodingType.Base64 });
+  return { requestId, success: true, data: { content } };
+}
+
+async function handleReadFileChunk(requestId: string, filePath: string, offset: number, length: number): Promise<RemoteResponse> {
+  const content = await FileSystem.readAsStringAsync(filePath, {
+    encoding: FileSystem.EncodingType.Base64,
+    position: offset,
+    length: length,
+  });
+  return { requestId, success: true, data: { content } };
+}
+
+async function handleDelete(requestId: string, filePath: string): Promise<RemoteResponse> {
+  if (filePath.startsWith('content://')) {
+    if (!FileSystem.StorageAccessFramework) {
+       return { requestId, success: false, error: 'StorageAccessFramework not supported on this device/version' };
+    }
+    await FileSystem.StorageAccessFramework.deleteAsync(filePath);
+  } else {
+    await FileSystem.deleteAsync(filePath);
+  }
+  return { requestId, success: true };
 }

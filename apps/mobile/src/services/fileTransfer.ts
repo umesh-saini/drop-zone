@@ -90,16 +90,38 @@ export class FileTransfer {
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
 
+    await this.sendFromUri(
+      asset.uri,
+      toDevice,
+      asset.name,
+      asset.size || 0,
+      asset.mimeType || 'application/octet-stream'
+    );
+  }
+
+  /**
+   * Send a file from a specific URI without opening the picker.
+   */
+  async sendFromUri(
+    uri: string,
+    toDevice: string,
+    fileName: string,
+    size: number,
+    fileType: string = 'application/octet-stream'
+  ): Promise<void> {
+    if (!this.socket?.connected) {
+      throw new Error('Not connected to server');
+    }
+
     const fileId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const size = asset.size || 0;
     const totalChunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
 
     const state: SendState = {
       fileId,
-      filePath: asset.uri,
-      fileName: asset.name,
+      filePath: uri,
+      fileName,
       fileSize: size,
-      fileType: asset.mimeType || 'application/octet-stream',
+      fileType,
       totalChunks,
       toDevice,
       sent: 0,
@@ -336,7 +358,8 @@ export class FileTransfer {
           let granted = !!directoryUri;
 
           if (!granted) {
-            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            const permissions =
+              await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
             if (permissions.granted) {
               directoryUri = permissions.directoryUri;
               await SecureStore.setItemAsync('savedDirectoryUri', directoryUri);
@@ -357,7 +380,9 @@ export class FileTransfer {
         } catch (e) {
           console.error('[FileTransfer] SAF failed, falling back:', e);
           // If it failed (e.g. user revoked permission or directory deleted), clear it for next time
-          try { await SecureStore.deleteItemAsync('savedDirectoryUri'); } catch (_) {}
+          try {
+            await SecureStore.deleteItemAsync('savedDirectoryUri');
+          } catch (_) {}
         }
       }
 

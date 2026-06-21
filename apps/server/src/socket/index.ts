@@ -157,6 +157,7 @@ export function setupSocketHandlers(io: Server): void {
 
     // Remote file access: request from browser to source device
     socket.on('remote:request', async (data: { toDevice: string; request: any }) => {
+      console.log(data)
       const canAccess = await checkPairedPermission(deviceCode, data.toDevice, 'file_access_read');
       if (!canAccess) {
         socket.emit('error', { message: 'Remote file access permission denied' });

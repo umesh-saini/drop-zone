@@ -10,6 +10,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { colors, spacing, fontSize } from './src/theme';
 import { useDropZone } from './src/hooks/useDropZone';
 import { useStore } from './src/store';
+import { GlobalTransferToast } from './src/components/GlobalTransferToast';
 
 type Tab = 'devices' | 'clipboard' | 'files' | 'settings';
 
@@ -78,6 +79,9 @@ function AppContent() {
           </Text>
         </View>
       </View>
+
+      {/* Global Transfer Toast */}
+      <GlobalTransferToast />
 
       {/* Active screen */}
       <View style={styles.screen}>{renderScreen()}</View>

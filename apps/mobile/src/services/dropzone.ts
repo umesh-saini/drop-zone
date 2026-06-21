@@ -5,6 +5,7 @@ import { generateKeyPair, deriveSharedSecret, encrypt, decrypt } from './crypto'
 import * as storage from './storage';
 import type { DeviceCredentials } from './storage';
 import { FileTransfer, type TransferProgress } from './fileTransfer';
+import * as FileSystem from 'expo-file-system';
 
 export interface PairingInfo {
   pairingId: string;
@@ -20,6 +21,11 @@ export interface PairingInfo {
 class MobileDropZone {
   private socket: Socket | null = null;
   private credentials: DeviceCredentials | null = null;
+
+  /** Public API client for direct calls from UI */
+  get api() {
+    return api;
+  }
   private pairings: PairingInfo[] = [];
   private permissionsCache = new Map<string, Record<string, boolean>>();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -135,8 +141,46 @@ class MobileDropZone {
     });
     // Host: respond to remote file access requests from paired devices
     this.socket.on('remote:request', async (d: any) => {
+      // Find the pairing for this device
+      const pairing = this.pairings.find(
+        (p) => p.deviceACode === d.fromDevice || p.deviceBCode === d.fromDevice
+      );
+
+      if (!pairing) return;
+
+      const type = d.request.type;
+      const isWrite = type === 'delete' || type === 'rename';
+      const requiredPerm = isWrite ? 'file_access_write' : 'file_access_read';
+
+      // Enforce permissions!
+      if (!this.hasPermission(pairing.pairingId, requiredPerm)) {
+        this.socket?.emit('remote:response', {
+          toDevice: d.fromDevice,
+          response: {
+            requestId: d.request.requestId,
+            success: false,
+            error: 'Permission denied: ' + requiredPerm,
+          },
+        });
+        return;
+      }
+
       const { handleRemoteRequest } = await import('./remoteFileHost');
       const response = await handleRemoteRequest(d.request);
+
+      if (type === 'download_file' && response.success) {
+        try {
+          const filePath = response.data.path;
+          const info = await FileSystem.getInfoAsync(filePath);
+          if (info.exists && !info.isDirectory) {
+            const fileName = filePath.split(/[\\/]/).pop() || 'download';
+            await this.fileTransfer.sendFromUri(filePath, d.fromDevice, fileName, info.size);
+          }
+        } catch (err) {
+          console.error('[Remote Request] Failed to trigger download:', err);
+        }
+      }
+
       this.socket?.emit('remote:response', { toDevice: d.fromDevice, response });
     });
 

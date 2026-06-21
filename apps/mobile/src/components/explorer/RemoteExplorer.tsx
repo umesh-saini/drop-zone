@@ -174,7 +174,7 @@ export function RemoteExplorer({ targetDevice, targetDeviceName }: Props) {
 
     switch (action) {
       case 'download':
-        Alert.alert('Download', `Downloading ${selectedEntry.name} to your device...`);
+        // Alert.alert('Download', `Downloading ${selectedEntry.name} to your device...`);
         await dropzone.remoteRequest(targetDevice, { type: 'download_file', path: selectedEntry.path });
         break;
       case 'extract':
