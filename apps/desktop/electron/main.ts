@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, clipboard, dialog, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -18,9 +18,12 @@ function createWindow() {
     icon: path.join(__dirname, '../public/favicon.svg'),
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.ts'),
+      preload: path.join(__dirname, "preload.ts"),
+      webSecurity: true,
+      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      devTools: true,
     },
   });
 

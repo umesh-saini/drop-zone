@@ -1,11 +1,8 @@
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron';
 
 /**
  * Expose a safe subset of Electron APIs to the renderer via contextBridge.
  * The renderer accesses these via `window.electronAPI`.
- *
- * Note: This file MUST use CommonJS (require) — Electron preload scripts
- * don't support ES modules.
  */
 contextBridge.exposeInMainWorld('electronAPI', {
   // Clipboard

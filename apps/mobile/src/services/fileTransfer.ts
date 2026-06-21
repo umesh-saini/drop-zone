@@ -86,13 +86,24 @@ export class FileTransfer {
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
 
+    // Copy the picked file to a guaranteed-readable location in our cache
+    // (Expo Go's DocumentPicker cache may have permission issues)
+    const cacheDir = FileSystem.cacheDirectory + 'dropzone-send/';
+    const cacheDirInfo = await FileSystem.getInfoAsync(cacheDir);
+    if (!cacheDirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+    }
+    const localUri = cacheDir + asset.name;
+    await FileSystem.copyAsync({ from: asset.uri, to: localUri });
+
     const fileId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const size = asset.size || 0;
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    const size = (fileInfo as any).size || asset.size || 0;
     const totalChunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
 
     const state: SendState = {
       fileId,
-      filePath: asset.uri,
+      filePath: localUri,
       fileName: asset.name,
       fileSize: size,
       fileType: asset.mimeType || 'application/octet-stream',
@@ -255,7 +266,7 @@ export class FileTransfer {
     if (!state) return;
     if (state.chunks.has(d.chunkIndex)) return;
 
-    // Store raw base64 chunk (not decoded — we'll concat and write as base64)
+    // Store raw base64 chunk as-is (each chunk is independently valid base64)
     state.chunks.set(d.chunkIndex, d.data);
     state.received++;
 
@@ -275,12 +286,33 @@ export class FileTransfer {
     if (!state) return;
 
     try {
-      // Concatenate all base64 chunks in order
-      let fullBase64 = '';
+      // Each chunk is independently valid base64 (from btoa on the sender).
+      // We decode each to binary, concatenate, then write as one base64 string.
+      const binaryChunks: Uint8Array[] = [];
+      let totalLen = 0;
       for (let i = 0; i < state.totalChunks; i++) {
-        const chunk = state.chunks.get(i);
-        if (chunk) fullBase64 += chunk;
+        const b64 = state.chunks.get(i);
+        if (!b64) continue;
+        // Decode base64 to binary
+        const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        binaryChunks.push(raw);
+        totalLen += raw.length;
       }
+
+      // Concatenate all binary
+      const full = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const chunk of binaryChunks) {
+        full.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Convert final binary to base64 for writing
+      let binary = '';
+      for (let i = 0; i < full.length; i++) {
+        binary += String.fromCharCode(full[i]);
+      }
+      const finalBase64 = btoa(binary);
 
       const dir = FileSystem.documentDirectory + 'dropzone/';
       const dirInfo = await FileSystem.getInfoAsync(dir);
@@ -288,7 +320,7 @@ export class FileTransfer {
         await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       }
       const uri = dir + state.fileName;
-      await FileSystem.writeAsStringAsync(uri, fullBase64, {
+      await FileSystem.writeAsStringAsync(uri, finalBase64, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
