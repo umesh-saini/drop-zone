@@ -133,6 +133,12 @@ class MobileDropZone {
       const handler = this.remoteResponseHandlers.get(d.response?.requestId);
       if (handler) handler(d.response);
     });
+    // Host: respond to remote file access requests from paired devices
+    this.socket.on('remote:request', async (d: any) => {
+      const { handleRemoteRequest } = await import('./remoteFileHost');
+      const response = await handleRemoteRequest(d.request);
+      this.socket?.emit('remote:response', { toDevice: d.fromDevice, response });
+    });
 
     // Wire file transfer
     this.fileTransfer.attach(this.socket, this.credentials.deviceCode);
