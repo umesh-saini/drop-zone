@@ -46,6 +46,7 @@ export class DropZoneService {
     onPairingAccepted?: () => void;
     onPairingRevoked?: (pairingId: string) => void;
     onPermissionUpdate?: (pairingId: string) => void;
+    onRemoteResponse?: (response: any) => void;
     onClipboardSent?: (content: string) => void;
     onTransferProgress?: (progress: TransferProgress) => void;
     onFileOffer?: (offer: {
@@ -196,6 +197,16 @@ export class DropZoneService {
           size: data.data.length,
         }),
       onFileComplete: (data) => this.transferManager?.handleComplete(data.fileId),
+      onRemoteRequest: async (data) => {
+        // This device is being browsed by a paired device — serve file listings
+        const { handleRemoteRequest } = await import('./RemoteFileHost');
+        const response = await handleRemoteRequest(data.request);
+        this.realtime?.sendRemoteResponse(data.fromDevice, response);
+      },
+      onRemoteResponse: (data) => {
+        // Response from a device we're browsing
+        this.callbacks.onRemoteResponse?.(data.response);
+      },
       onError: (data) => console.error('[Socket] Error:', data.message),
     });
 
@@ -444,6 +455,13 @@ export class DropZoneService {
 
   getPeerForPairing(pairingId: string): string | undefined {
     return this.pairingPeers.get(pairingId);
+  }
+
+  /**
+   * Send a remote file access request to another device.
+   */
+  sendRemoteRequest(toDevice: string, request: any): void {
+    this.realtime?.sendRemoteRequest(toDevice, request);
   }
 }
 

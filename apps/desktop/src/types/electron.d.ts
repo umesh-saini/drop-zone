@@ -11,6 +11,29 @@ interface ElectronAPI {
   getFileSize(filePath: string): Promise<number>;
   writeChunk(filePath: string, offset: number, base64Data: string): Promise<void>;
   getDownloadsDir(): Promise<string>;
+  listDirectory(
+    dirPath: string,
+    showHidden: boolean
+  ): Promise<
+    {
+      name: string;
+      path: string;
+      isDirectory: boolean;
+      size: number;
+      lastModified: number;
+      mimeType?: string;
+    }[]
+  >;
+  getHomeDirs(): Promise<{
+    home: string;
+    documents: string;
+    downloads: string;
+    desktop: string;
+    pictures: string;
+    music: string;
+    videos: string;
+  }>;
+  pathExists(filePath: string): Promise<boolean>;
 }
 
 declare global {

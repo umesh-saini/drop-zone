@@ -301,8 +301,11 @@ export class TransferManager {
       this.emitProgress(state);
 
       // If this was the final chunk finishing its write, and the complete signal was already received, finalize.
-      if ((state as any)._completeSignalReceived && state.completedChunks.size === state.totalChunks) {
-        if (state.status !== 'completed') {
+      if (
+        (state as any)._completeSignalReceived &&
+        state.completedChunks.size === state.totalChunks
+      ) {
+        if ((state.status as string) !== 'completed') {
           state.status = 'completed';
           const finalSavePath = (state as any)._savePath as string;
           this.handlers.onCompleted?.(chunk.fileId, finalSavePath);

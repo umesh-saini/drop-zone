@@ -20,4 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeChunk: (filePath: string, offset: number, base64Data: string) =>
     ipcRenderer.invoke('fs:writeChunk', filePath, offset, base64Data),
   getDownloadsDir: () => ipcRenderer.invoke('fs:getDownloadsDir'),
+
+  // Directory listing (for remote file hosting)
+  listDirectory: (dirPath: string, showHidden: boolean) =>
+    ipcRenderer.invoke('fs:listDirectory', dirPath, showHidden),
+  getHomeDirs: () => ipcRenderer.invoke('fs:getHomeDirs'),
+  pathExists: (filePath: string) => ipcRenderer.invoke('fs:pathExists', filePath),
 });

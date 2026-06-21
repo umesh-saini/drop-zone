@@ -18,7 +18,7 @@ function createWindow() {
     icon: path.join(__dirname, '../public/favicon.svg'),
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.ts"),
+      preload: path.join(__dirname, 'preload.ts'),
       webSecurity: true,
       sandbox: false,
       contextIsolation: true,
@@ -112,6 +112,51 @@ ipcMain.handle('fs:writeChunk', (_event, filePath: string, offset: number, base6
 // Get downloads dir for receiving files
 ipcMain.handle('fs:getDownloadsDir', () => {
   return app.getPath('downloads');
+});
+
+// Directory listing for remote file access hosting
+ipcMain.handle('fs:listDirectory', (_event, dirPath: string, showHidden: boolean) => {
+  try {
+    const entries = fs.readdirSync(dirPath);
+    return entries
+      .filter((name) => showHidden || !name.startsWith('.'))
+      .map((name) => {
+        const fullPath = path.join(dirPath, name);
+        try {
+          const stats = fs.statSync(fullPath);
+          return {
+            name,
+            path: fullPath,
+            isDirectory: stats.isDirectory(),
+            size: stats.isDirectory() ? 0 : stats.size,
+            lastModified: stats.mtimeMs,
+            mimeType: stats.isDirectory() ? undefined : getMimeType(path.extname(name)),
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('fs:getHomeDirs', () => {
+  const home = app.getPath('home');
+  return {
+    home,
+    documents: app.getPath('documents'),
+    downloads: app.getPath('downloads'),
+    desktop: app.getPath('desktop'),
+    pictures: app.getPath('pictures'),
+    music: app.getPath('music'),
+    videos: app.getPath('videos'),
+  };
+});
+
+ipcMain.handle('fs:pathExists', (_event, filePath: string) => {
+  return fs.existsSync(filePath);
 });
 
 // Helper
