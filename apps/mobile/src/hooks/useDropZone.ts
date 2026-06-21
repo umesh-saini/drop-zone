@@ -43,6 +43,10 @@ export function useDropZone() {
               progress: p.progress,
               fromDevice: p.fromDevice,
             }),
+          onFileSaved: (fileName) => {
+            // const { Alert } = require('react-native');
+            // Alert.alert('File Received', `Successfully saved ${fileName}`);
+          },
         };
 
         await dropzone.connect();

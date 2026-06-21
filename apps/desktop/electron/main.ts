@@ -159,6 +159,56 @@ ipcMain.handle('fs:pathExists', (_event, filePath: string) => {
   return fs.existsSync(filePath);
 });
 
+// File operations for remote management
+ipcMain.handle('fs:readFile', (_event, filePath: string) => {
+  return fs.readFileSync(filePath, 'utf-8');
+});
+
+ipcMain.handle('fs:readFileBase64', (_event, filePath: string) => {
+  return fs.readFileSync(filePath, 'base64');
+});
+
+ipcMain.handle('fs:extractArchive', async (_event, filePath: string, destPath: string) => {
+  try {
+    const AdmZip = (await import('adm-zip')).default;
+    const zip = new AdmZip(filePath);
+    zip.extractAllTo(destPath, true);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('fs:writeFile', (_event, filePath: string, content: string) => {
+  fs.writeFileSync(filePath, content, 'utf-8');
+});
+
+ipcMain.handle('fs:copy', (_event, src: string, dest: string) => {
+  fs.cpSync(src, dest, { recursive: true });
+});
+
+ipcMain.handle('fs:move', (_event, src: string, dest: string) => {
+  fs.renameSync(src, dest);
+});
+
+ipcMain.handle('fs:delete', (_event, filePath: string) => {
+  fs.rmSync(filePath, { recursive: true, force: true });
+});
+
+ipcMain.handle('fs:rename', (_event, src: string, dest: string) => {
+  fs.renameSync(src, dest);
+});
+
+ipcMain.handle('fs:getProperties', (_event, filePath: string) => {
+  const stats = fs.statSync(filePath);
+  return {
+    size: stats.size,
+    created: stats.birthtimeMs,
+    modified: stats.mtimeMs,
+    isDirectory: stats.isDirectory(),
+  };
+});
+
 // Helper
 function getMimeType(ext: string): string {
   const map: Record<string, string> = {

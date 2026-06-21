@@ -34,6 +34,15 @@ interface ElectronAPI {
     videos: string;
   }>;
   pathExists(filePath: string): Promise<boolean>;
+  readFile(filePath: string): Promise<string>;
+  readFileBase64(filePath: string): Promise<string>;
+  extractArchive(filePath: string, destPath: string): Promise<{ success: boolean; error?: string }>;
+  writeFile(filePath: string, content: string): Promise<void>;
+  copyFile(src: string, dest: string): Promise<void>;
+  moveFile(src: string, dest: string): Promise<void>;
+  deleteFile(filePath: string): Promise<void>;
+  renameFile(src: string, dest: string): Promise<void>;
+  getProperties(filePath: string): Promise<{ size: number; created: number; modified: number; isDirectory: boolean }>;
 }
 
 declare global {

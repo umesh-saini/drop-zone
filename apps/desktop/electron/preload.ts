@@ -26,4 +26,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:listDirectory', dirPath, showHidden),
   getHomeDirs: () => ipcRenderer.invoke('fs:getHomeDirs'),
   pathExists: (filePath: string) => ipcRenderer.invoke('fs:pathExists', filePath),
+  readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath),
+  readFileBase64: (filePath: string) => ipcRenderer.invoke('fs:readFileBase64', filePath),
+  extractArchive: (filePath: string, destPath: string) => ipcRenderer.invoke('fs:extractArchive', filePath, destPath),
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('fs:writeFile', filePath, content),
+  copyFile: (src: string, dest: string) => ipcRenderer.invoke('fs:copy', src, dest),
+  moveFile: (src: string, dest: string) => ipcRenderer.invoke('fs:move', src, dest),
+  deleteFile: (filePath: string) => ipcRenderer.invoke('fs:delete', filePath),
+  renameFile: (src: string, dest: string) => ipcRenderer.invoke('fs:rename', src, dest),
+  getProperties: (filePath: string) => ipcRenderer.invoke('fs:getProperties', filePath),
 });

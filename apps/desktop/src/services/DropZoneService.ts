@@ -201,6 +201,35 @@ export class DropZoneService {
         // This device is being browsed by a paired device — serve file listings
         const { handleRemoteRequest } = await import('./RemoteFileHost');
         const response = await handleRemoteRequest(data.request);
+
+        if (data.request.type === 'download_file' && response.success) {
+          try {
+            const filePath = response.data.path;
+            const stats = await window.electronAPI!.getProperties(filePath);
+            const fileName = filePath.split(/[\\/]/).pop() || 'download';
+            
+            const fileObj = {
+              name: fileName,
+              size: stats.size,
+              type: 'application/octet-stream',
+              path: filePath,
+              lastModified: stats.modified,
+            };
+
+            const pairingId = this.findPairingForPeer(data.fromDevice);
+            if (pairingId) {
+              await this.transferManager?.sendFile(
+                fileObj,
+                data.fromDevice,
+                this.credentials!.deviceCode,
+                pairingId
+              );
+            }
+          } catch (err) {
+            console.error('Failed to trigger download file transfer:', err);
+          }
+        }
+
         this.realtime?.sendRemoteResponse(data.fromDevice, response);
       },
       onRemoteResponse: (data) => {
