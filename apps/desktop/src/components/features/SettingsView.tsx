@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import { User, Shield, Wifi, Info, RefreshCw, Plug } from 'lucide-react';
+import { User, Shield, Wifi, Info, RefreshCw, Plug, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/app.store';
 import { reconnectDropZone } from '@/hooks/useDropZone';
+import { dropzone } from '@/services/DropZoneService';
+import * as credStore from '@/services/credentialStore';
 import { cn } from '@/lib/utils';
 
 export function SettingsView() {
   const { deviceCode, deviceName, connectionMode, isConnected } = useAppStore();
   const [reconnecting, setReconnecting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState(deviceName || '');
 
   const handleReconnect = async () => {
     setReconnecting(true);
@@ -22,6 +26,26 @@ export function SettingsView() {
     } finally {
       setReconnecting(false);
     }
+  };
+
+  const handleRename = async () => {
+    if (!newName.trim()) return;
+    try {
+      const res = await dropzone.api.updateMe({ deviceName: newName.trim() });
+      if (res.success) {
+        useAppStore.getState().setDevice(deviceCode!, newName.trim());
+        toast.success('Device renamed');
+        setRenaming(false);
+      }
+    } catch {
+      toast.error('Rename failed');
+    }
+  };
+
+  const handleReset = async () => {
+    if (!confirm('Reset this device? You will lose all pairings and need to re-pair.')) return;
+    await credStore.clearCredentials();
+    window.location.reload();
   };
 
   return (
@@ -77,7 +101,34 @@ export function SettingsView() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Device Name</span>
-              <span className="text-sm font-medium">{deviceName || 'Not set'}</span>
+              {renaming ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="h-7 w-32 rounded border border-input bg-background px-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                  />
+                  <Button size="sm" className="h-7 px-2 text-xs" onClick={handleRename}>
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{deviceName || 'Not set'}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setNewName(deviceName || '');
+                      setRenaming(true);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Device Code</span>
@@ -167,8 +218,26 @@ export function SettingsView() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Platform</span>
-              <span className="text-sm">Desktop (Tauri)</span>
+              <span className="text-sm">Desktop (Electron)</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Reset this device identity. You will lose all pairings and need to re-pair.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" size="sm" onClick={handleReset}>
+              Reset Device
+            </Button>
           </CardContent>
         </Card>
       </div>
