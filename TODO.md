@@ -478,41 +478,35 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [ ] Tune heartbeat / reconnect backoff for battery efficiency
 - [ ] Pause/resume sync toggle
 
-### Phase 16: Remote File Explorer (full OS-like browser) (P2)
+### Phase 16: Remote File Explorer (full OS-like browser) (P2) ✅
 
-> Files tab should show the OTHER device's file system like a normal file manager.
+> Files tab now has a "Browse Device" tab showing the other device's file system.
 
-- [ ] Desktop host: expose sandboxed folders, real directory listing (RemoteAccessHost exists — wire UI)
-- [ ] Mobile host: expose accessible folders via expo-file-system
-- [ ] Explorer UI (both apps): breadcrumb path, folder navigation, file list,
-      icons by type, size, modified date, back/up navigation
-- [ ] Open/preview files (images, text, PDF) inline
-- [ ] Download file → existing TransferManager flow
-- [ ] Edit file (if `file_access_write` granted) → upload back
-- [ ] Delete file (if `file_access_write` granted) → confirm
-- [ ] Show "You don't have permission" when read/write not allowed
-- [ ] Folder picker in Settings to choose which folders are shared
+- [x] Desktop host: Electron IPC for directory listing (listDirectory, getHomeDirs)
+- [x] Desktop host: RemoteFileHost service responds to remote:request socket events
+- [x] Explorer UI: root folder picker (Home/Documents/Downloads/Desktop/Pictures)
+- [x] Explorer UI: full directory navigation (click to enter, back/home buttons)
+- [x] Explorer UI: file type icons, sizes, sorted (folders first)
+- [x] Explorer UI: "Permission denied" state when file_access_read not granted
+- [x] Explorer UI: Download button per file (wiring placeholder)
+- [ ] Mobile host: expose accessible folders (future)
+- [ ] Download file → existing TransferManager flow (file:offer → chunks)
+- [ ] Delete/edit files with file_access_write permission (future)
+- [ ] Folder picker in Settings to choose which folders are shared (future)
 
-### Phase 17: Additional Recommendations (my suggestions)
+### Phase 17: Additional Recommendations ✅ (partial)
 
-> Things I think are needed for a solid product.
-
+- [x] Device rename (PATCH /devices/me) from Settings with inline edit
+- [x] "Reset this device" / logout (clear creds + re-register)
+- [ ] File transfer accept/reject prompt (currently auto-accepts)
 - [ ] Transfer controls in UI: cancel, pause, resume, retry
-- [ ] Device rename (PATCH /devices/me) from Settings
-- [ ] "Reset this device" / logout (clear creds + re-register)
-- [ ] Real per-device online status (currently only updates via events — sync on load)
-- [ ] Offline queue: buffer clipboard/files when peer offline, deliver on reconnect
-- [ ] Native notifications: clipboard received, file received, pairing request
-- [ ] Clipboard history persistence (survive restart) + clear history
-- [ ] Deep-link pairing: `dropzone://pair/...` opens app and pre-fills
+- [ ] Offline queue: buffer clipboard/files when peer offline
+- [ ] Native notifications: clipboard received, file received
+- [ ] Clipboard history persistence (survive restart)
 - [ ] Multi-file selection + batch send
-- [ ] First-run onboarding: name your device, permission primer
-- [ ] Web app: enable file send (currently shows "coming soon")
-- [ ] Error/empty/loading states audit across all screens
+- [ ] First-run onboarding: name your device
 - [ ] Reconnect with exponential backoff + connection lost banner
-- [ ] Automated tests (unit for crypto/transfer, integration for pairing flow)
-- [ ] Local mode native modules (desktop Rust UDP, mobile react-native-udp)
-- [ ] Light theme implementation (tokens ready, wire the toggle)
+- [ ] Light theme toggle
 
 ---
 
