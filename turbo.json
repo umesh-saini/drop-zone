@@ -11,6 +11,10 @@
       "cache": false,
       "persistent": true
     },
+    "electron:dev": {
+      "cache": false,
+      "persistent": true
+    },
     "typecheck": {
       "dependsOn": ["^typecheck"],
       "outputs": []

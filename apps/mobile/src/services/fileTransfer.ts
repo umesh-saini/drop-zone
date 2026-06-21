@@ -1,7 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Socket } from 'socket.io-client';
-import { decodeBase64, encodeBase64 } from 'tweetnacl-util';
 
 /**
  * Mobile file transfer — self-contained, wire-compatible with the desktop
@@ -40,7 +39,7 @@ interface RecvState {
   fileSize: number;
   totalChunks: number;
   fromDevice: string;
-  chunks: Map<number, Uint8Array>;
+  chunks: Map<number, string>; // base64 strings
   received: number;
 }
 
@@ -136,22 +135,27 @@ export class FileTransfer {
       progress: 0,
     });
 
-    for (let i = 0; i < state.totalChunks; i++) {
-      const position = i * CHUNK_SIZE;
-      const length = Math.min(CHUNK_SIZE, state.fileSize - position);
-      try {
-        const base64 = await FileSystem.readAsStringAsync(state.filePath, {
-          encoding: FileSystem.EncodingType.Base64,
-          position,
-          length,
-        });
+    try {
+      // Read entire file as base64 (expo-file-system doesn't support position/length)
+      const fullBase64 = await FileSystem.readAsStringAsync(state.filePath, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Split into chunks and send
+      const chunkSizeB64 = Math.ceil((CHUNK_SIZE * 4) / 3); // base64 chars per chunk
+      const totalChunks = Math.max(1, Math.ceil(fullBase64.length / chunkSizeB64));
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunkData = fullBase64.slice(i * chunkSizeB64, (i + 1) * chunkSizeB64);
+
         this.socket?.emit('file:chunk', {
           fileId: state.fileId,
           toDevice: state.toDevice,
           chunkIndex: i,
-          totalChunks: state.totalChunks,
-          data: base64,
+          totalChunks,
+          data: chunkData,
         });
+
         state.sent++;
         this.emitProgress({
           fileId: state.fileId,
@@ -159,33 +163,35 @@ export class FileTransfer {
           fileSize: state.fileSize,
           direction: 'send',
           status: 'in_progress',
-          progress: Math.round((state.sent / state.totalChunks) * 100),
+          progress: Math.round((state.sent / totalChunks) * 100),
         });
-        // Small yield to avoid flooding
-        await new Promise((r) => setTimeout(r, 5));
-      } catch {
-        this.emitProgress({
-          fileId: state.fileId,
-          fileName: state.fileName,
-          fileSize: state.fileSize,
-          direction: 'send',
-          status: 'failed',
-          progress: 0,
-        });
-        return;
-      }
-    }
 
-    this.socket?.emit('file:complete', { fileId: state.fileId, toDevice: state.toDevice });
-    this.emitProgress({
-      fileId: state.fileId,
-      fileName: state.fileName,
-      fileSize: state.fileSize,
-      direction: 'send',
-      status: 'completed',
-      progress: 100,
-    });
-    this.sends.delete(state.fileId);
+        // Yield to avoid blocking
+        if (i % 5 === 0) await new Promise((r) => setTimeout(r, 10));
+      }
+
+      this.socket?.emit('file:complete', { fileId: state.fileId, toDevice: state.toDevice });
+      this.emitProgress({
+        fileId: state.fileId,
+        fileName: state.fileName,
+        fileSize: state.fileSize,
+        direction: 'send',
+        status: 'completed',
+        progress: 100,
+      });
+    } catch (err: any) {
+      console.error('[FileTransfer] Send failed:', err);
+      this.emitProgress({
+        fileId: state.fileId,
+        fileName: state.fileName,
+        fileSize: state.fileSize,
+        direction: 'send',
+        status: 'failed',
+        progress: 0,
+      });
+    } finally {
+      this.sends.delete(state.fileId);
+    }
   }
 
   private handleReject(d: { fileId: string }): void {
@@ -249,7 +255,8 @@ export class FileTransfer {
     if (!state) return;
     if (state.chunks.has(d.chunkIndex)) return;
 
-    state.chunks.set(d.chunkIndex, decodeBase64(d.data));
+    // Store raw base64 chunk (not decoded — we'll concat and write as base64)
+    state.chunks.set(d.chunkIndex, d.data);
     state.received++;
 
     this.emitProgress({
@@ -268,19 +275,11 @@ export class FileTransfer {
     if (!state) return;
 
     try {
-      // Concatenate all chunk bytes in order
-      let totalLen = 0;
+      // Concatenate all base64 chunks in order
+      let fullBase64 = '';
       for (let i = 0; i < state.totalChunks; i++) {
-        totalLen += state.chunks.get(i)?.length || 0;
-      }
-      const full = new Uint8Array(totalLen);
-      let offset = 0;
-      for (let i = 0; i < state.totalChunks; i++) {
-        const c = state.chunks.get(i);
-        if (c) {
-          full.set(c, offset);
-          offset += c.length;
-        }
+        const chunk = state.chunks.get(i);
+        if (chunk) fullBase64 += chunk;
       }
 
       const dir = FileSystem.documentDirectory + 'dropzone/';
@@ -289,9 +288,11 @@ export class FileTransfer {
         await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       }
       const uri = dir + state.fileName;
-      await FileSystem.writeAsStringAsync(uri, encodeBase64(full), {
+      await FileSystem.writeAsStringAsync(uri, fullBase64, {
         encoding: FileSystem.EncodingType.Base64,
       });
+
+      console.log('[FileTransfer] Saved to:', uri);
 
       this.emitProgress({
         fileId: state.fileId,
@@ -303,7 +304,8 @@ export class FileTransfer {
         fromDevice: state.fromDevice,
       });
       this.onSaved?.(state.fileName, uri);
-    } catch {
+    } catch (err: any) {
+      console.error('[FileTransfer] Save failed:', err);
       this.emitProgress({
         fileId: state.fileId,
         fileName: state.fileName,

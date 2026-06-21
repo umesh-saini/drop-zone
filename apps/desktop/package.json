@@ -7,7 +7,7 @@
   "scripts": {
     "vite:dev": "vite --port 1420",
     "dev": "vite --port 1420",
-    "electron:dev": "electron electron/main.ts --no-sandbox",
+    "electron:dev": "electron electron/main.ts --no-sandbox --dev",
     "build": "vite build",
     "electron:build": "vite build && electron-builder",
     "lint": "eslint .",
