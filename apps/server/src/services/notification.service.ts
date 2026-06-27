@@ -1,4 +1,5 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getMessaging, Message } from 'firebase-admin/messaging';
 import path from 'path';
 import fs from 'fs';
 import { getDeviceByCode } from './device.service';
@@ -13,8 +14,8 @@ function initFirebase() {
     const serviceAccountPath = path.resolve(process.cwd(), 'firebase-admin.json');
     if (fs.existsSync(serviceAccountPath)) {
       const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+      initializeApp({
+        credential: cert(serviceAccount),
       });
       firebaseInitialized = true;
       console.log('✅ Firebase Admin initialized for FCM.');
@@ -47,7 +48,7 @@ export const notificationService = {
         return; // Device not found or no FCM token registered
       }
 
-      const message: admin.messaging.Message = {
+      const message: Message = {
         token: device.fcmToken,
         notification: {
           title,
@@ -57,7 +58,6 @@ export const notificationService = {
         android: {
           priority: 'high',
           notification: {
-            channelId: 'default',
             sound: 'default'
           }
         },
@@ -70,7 +70,7 @@ export const notificationService = {
         }
       };
 
-      await admin.messaging().send(message);
+      await getMessaging().send(message);
       console.log(`📨 FCM Push notification sent to device ${targetDeviceCode}`);
     } catch (err) {
       console.error(`❌ Error sending FCM push notification to ${targetDeviceCode}:`, err);
