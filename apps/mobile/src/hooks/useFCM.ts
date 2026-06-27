@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, ToastAndroid } from 'react-native';
 import Constants from 'expo-constants';
+import * as Clipboard from 'expo-clipboard';
 
 export function useFCM() {
   const [fcmToken, setFcmToken] = useState<string>();
@@ -45,6 +46,26 @@ export function useFCM() {
 
         unsubscribeMessage = messaging().onMessage(async (remoteMessage: any) => {
           console.log('Foreground FCM Message:', JSON.stringify(remoteMessage));
+        });
+
+        // Handle notification taps while the app is in the background
+        messaging().onNotificationOpenedApp(async (remoteMessage: any) => {
+          if (remoteMessage?.data?.type === 'clipboard:update' && remoteMessage?.data?.text) {
+            await Clipboard.setStringAsync(remoteMessage.data.text);
+            if (Platform.OS === 'android') {
+              ToastAndroid.show('Copied to clipboard!', ToastAndroid.SHORT);
+            }
+          }
+        });
+
+        // Handle notification taps that launch the app from a killed state
+        messaging().getInitialNotification().then(async (remoteMessage: any) => {
+          if (remoteMessage?.data?.type === 'clipboard:update' && remoteMessage?.data?.text) {
+            await Clipboard.setStringAsync(remoteMessage.data.text);
+            if (Platform.OS === 'android') {
+              ToastAndroid.show('Copied to clipboard!', ToastAndroid.SHORT);
+            }
+          }
         });
       } catch (err) {
         console.warn('Failed to initialize FCM or get token:', err);

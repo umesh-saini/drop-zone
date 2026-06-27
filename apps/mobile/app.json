@@ -20,6 +20,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "notification": {
+        "icon": "./assets/notification-icon.png",
+        "color": "#3B82F6"
+      },
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",

@@ -263,9 +263,9 @@ async function handleClipboardSync(
       if (!presence.isOnline(targetDevice)) {
         await notificationService.sendNotification(
           targetDevice,
-          'Clipboard Updated',
-          `Your clipboard was updated by device ${fromDeviceCode}`,
-          { type: 'clipboard:update' }
+          'Clipboard Update Received',
+          `Tap to copy the text sent by ${fromDeviceCode}`,
+          { type: 'clipboard:update', text: data.content }
         );
       }
     }
