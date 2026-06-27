@@ -168,9 +168,6 @@ importers:
       expo:
         specifier: ~56.0.12
         version: 56.0.12(@babel/core@7.29.7)(@expo/dom-webview@56.0.5)(react-dom@19.2.7(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
-      expo-av:
-        specifier: ^16.0.8
-        version: 16.0.8(expo@56.0.12)(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-camera:
         specifier: ~56.0.8
         version: 56.0.8(@types/emscripten@1.41.5)(expo@56.0.12)(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -3807,17 +3804,6 @@ packages:
       expo: '*'
       react: '*'
       react-native: '*'
-
-  expo-av@16.0.8:
-    resolution: {integrity: sha512-cmVPftGR/ca7XBgs7R6ky36lF3OC0/MM/lpgX/yXqfv0jASTsh7AYX9JxHCwFmF+Z6JEB1vne9FDx4GiLcGreQ==}
-    peerDependencies:
-      expo: '*'
-      react: '*'
-      react-native: '*'
-      react-native-web: '*'
-    peerDependenciesMeta:
-      react-native-web:
-        optional: true
 
   expo-camera@56.0.8:
     resolution: {integrity: sha512-UDOpUUMisFRmCv1XQV1MJCKGAH2CsIC1Rs6P9Bbc6JLVmbxEKAd5dK68y6cScOdWURxVfJ0PRcjYnSuc8ayyIQ==}
@@ -10756,7 +10742,7 @@ snapshots:
       eslint: 9.39.4(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.4(jiti@2.7.0))
@@ -10789,7 +10775,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -10804,7 +10790,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -11034,12 +11020,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  expo-av@16.0.8(expo@56.0.12)(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
-    dependencies:
-      expo: 56.0.12(@babel/core@7.29.7)(@expo/dom-webview@56.0.5)(react-dom@19.2.7(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
-      react: 19.2.3
-      react-native: 0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3)
 
   expo-camera@56.0.8(@types/emscripten@1.41.5)(expo@56.0.12)(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
