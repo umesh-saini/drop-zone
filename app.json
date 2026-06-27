@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "e9235b83-25c7-470a-98dc-017367b09a5a"
+      }
+    },
+    "android": {
+      "package": "com.umesh.dropzone"
+    }
+  }
+}

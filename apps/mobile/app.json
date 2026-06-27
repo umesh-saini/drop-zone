@@ -10,8 +10,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "DropZone uses the camera to scan QR codes for pairing devices."
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      }
     },
     "android": {
       "package": "com.umesh.dropzone",

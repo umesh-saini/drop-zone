@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-import messaging from '@react-native-firebase/messaging';
-
 export function useFCM() {
   const [fcmToken, setFcmToken] = useState<string>();
 
@@ -19,6 +17,9 @@ export function useFCM() {
 
     async function setupFCM() {
       try {
+        // Dynamically require to prevent top-level native module crashes in Expo Go
+        const messaging = require('@react-native-firebase/messaging').default;
+        
         if (Platform.OS === 'ios') {
           const authStatus = await messaging().requestPermission();
           const enabled =
