@@ -32,6 +32,14 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "DropZone uses the camera to scan QR codes for pairing devices."
