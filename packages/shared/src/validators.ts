@@ -14,6 +14,7 @@ export const deviceSchema = z.object({
   deviceType: z.enum(["desktop", "mobile", "web"]),
   platform: z.enum(["windows", "mac", "linux", "android", "ios", "web"]),
   publicKey: z.string(),
+  fcmToken: z.string().optional(),
 });
 
 export const pairingRequestSchema = z.object({

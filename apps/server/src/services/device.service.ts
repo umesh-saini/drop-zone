@@ -105,7 +105,7 @@ export async function getDeviceByCode(deviceCode: string): Promise<IDevice | nul
  */
 export async function updateDevice(
   deviceCode: string,
-  updates: Partial<Pick<IDevice, 'deviceName' | 'publicKey'>>
+  updates: Partial<Pick<IDevice, 'deviceName' | 'publicKey' | 'fcmToken'>>
 ): Promise<IDevice | null> {
   return Device.findOneAndUpdate({ deviceCode }, updates, { new: true });
 }

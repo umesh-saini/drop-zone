@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { sessionService, permissionService } from '../services';
+import { sessionService, permissionService, notificationService } from '../services';
 import { Device, Pairing } from '../models';
 import * as presence from './presence';
 
@@ -101,6 +101,15 @@ export function setupSocketHandlers(io: Server): void {
           fromDevice: deviceCode,
           timestamp: Date.now(),
         });
+
+        if (!presence.isOnline(data.toDevice)) {
+          await notificationService.sendNotification(
+            data.toDevice,
+            'Incoming File Transfer',
+            `Device ${deviceCode} wants to send you a file: ${data.fileName}`,
+            { type: 'file:offer', fileId: data.fileId }
+          );
+        }
       }
     );
 
@@ -250,6 +259,15 @@ async function handleClipboardSync(
         timestamp: data.timestamp,
         pairingId: pairing._id.toString(),
       });
+
+      if (!presence.isOnline(targetDevice)) {
+        await notificationService.sendNotification(
+          targetDevice,
+          'Clipboard Updated',
+          `Your clipboard was updated by device ${fromDeviceCode}`,
+          { type: 'clipboard:update' }
+        );
+      }
     }
   }
 }

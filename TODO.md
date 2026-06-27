@@ -467,10 +467,12 @@ Each permission is **independently toggleable per direction**. Users control exa
 
 > Both apps should keep syncing in the background, lightweight on battery/CPU.
 
-- [ ] Desktop: run in system tray, keep socket alive when window closed
-  - [ ] Tray icon + menu (Show, Pause sync, Quit)
-  - [ ] Autostart on login (Tauri autostart plugin)
-  - [ ] Minimize-to-tray instead of quit
+- [ ] Desktop: Background Service & Lifecycle
+  - [ ] App Tray integration: App can only be closed from the tray (Force Quit / Quit).
+  - [ ] Minimize/Hide to tray when the main window close button (X) is clicked.
+  - [ ] Autostart on system restart/login.
+  - [ ] Auto-updater setup.
+  - [ ] Native Desktop Notifications for incoming files.
 - [ ] Mobile: background clipboard/file sync within OS limits
   - [ ] expo-task-manager / background fetch for periodic sync
   - [ ] Foreground service notification (Android) while connected
@@ -489,10 +491,11 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [x] Explorer UI: file type icons, sizes, sorted (folders first)
 - [x] Explorer UI: "Permission denied" state when file_access_read not granted
 - [x] Explorer UI: Download button per file (wiring placeholder)
-- [ ] Mobile host: expose accessible folders (future)
+- [x] Mobile host: expose accessible folders (future)
+- [ ] Fix Mobile File Download (SAF issue where `getInfoAsync` fails for `content://` URIs)
 - [ ] Download file → existing TransferManager flow (file:offer → chunks)
 - [ ] Delete/edit files with file_access_write permission (future)
-- [ ] Folder picker in Settings to choose which folders are shared (future)
+- [x] Folder picker in Settings to choose which folders are shared (future)
 
 ### Phase 17: Additional Recommendations ✅ (partial)
 
@@ -507,6 +510,26 @@ Each permission is **independently toggleable per direction**. Users control exa
 - [ ] Clipboard history persistence (survive restart)
 - [ ] Multi-file selection + batch send -->
 <!-- - [ ] Reconnect with exponential backoff + connection lost banner -->
+
+---
+
+### Phase 18: Push Notifications (P1) ✅
+
+> Ensure devices are alerted of transfers even when the app is backgrounded.
+
+- [x] Setup `expo-notifications` on mobile.
+- [x] Request push permissions and register Push Token to server (`PATCH /devices/me`).
+- [x] Server: integrate `expo-server-sdk` to fire push notifications on incoming socket events when peer is disconnected/backgrounded.
+
+### Phase 19: Remote Virtual Terminal (P1)
+
+> Allow developers to run shell commands on connected Linux machines from their paired devices.
+
+- [ ] Add `pty:request`, `pty:data`, `pty:resize`, and `pty:close` socket events to server.
+- [ ] Implement `terminal_access` permission toggle (default OFF).
+- [ ] Desktop Host: Integrate a Rust PTY library to spawn a bash/zsh shell.
+- [ ] Client (Desktop/Web): Integrate `xterm.js` for the terminal UI.
+- [ ] Client (Mobile): Integrate a basic WebView with `xterm.js` or React Native terminal component.
 
 ---
 

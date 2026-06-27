@@ -83,3 +83,4 @@ pnpm --filter @dropzone/web build
 ## License
 
 MIT
+com.umesh.dropzone

@@ -10,9 +10,11 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "DropZone uses the camera to scan QR codes for pairing devices."
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
+      "package": "com.umesh.dropzone",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,8 +23,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA"
-      ]
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +38,14 @@
           "cameraPermission": "DropZone uses the camera to scan QR codes for pairing devices."
         }
       ],
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f5a9ed69-9913-45c7-a327-483af1289a9b"
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@ export interface IDevice extends Document {
   platform: 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'web';
   publicKey: string;
   secretToken: string; // hashed token for auth
+  fcmToken?: string;
   lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +45,10 @@ const DeviceSchema = new Schema<IDevice>(
     secretToken: {
       type: String,
       required: true,
+    },
+    fcmToken: {
+      type: String,
+      required: false,
     },
     lastSeen: {
       type: Date,

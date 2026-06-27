@@ -54,7 +54,7 @@ export const api = {
   login: (deviceCode: string, secretToken: string) =>
     request('POST', '/api/devices/login', { deviceCode, secretToken }),
   getMe: () => request('GET', '/api/devices/me'),
-  updateMe: (updates: { deviceName?: string; publicKey?: string }) =>
+  updateMe: (updates: { deviceName?: string; publicKey?: string; fcmToken?: string }) =>
     request('PATCH', '/api/devices/me', updates),
   lookupDevice: (code: string) => request('GET', `/api/devices/${code}`),
   requestPairing: (targetDeviceCode: string) =>

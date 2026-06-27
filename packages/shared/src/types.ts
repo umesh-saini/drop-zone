@@ -9,6 +9,7 @@ export interface Device {
   deviceType: DeviceType;
   platform: Platform;
   publicKey: string;
+  fcmToken?: string;
   createdAt: Date;
   lastSeen: Date;
 }

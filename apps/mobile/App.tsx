@@ -11,9 +11,11 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { useThemeStore } from './src/theme/ThemeContext';
 import { colors, spacing, fontSize } from './src/theme';
-import { useDropZone } from './src/hooks/useDropZone';
 import { useStore } from './src/store';
+import { useDropZone } from './src/hooks/useDropZone';
 import { GlobalTransferToast } from './src/components/GlobalTransferToast';
+import { api } from './src/services/api';
+import { useFCM } from './src/hooks/useFCM';
 
 type Tab = 'devices' | 'clipboard' | 'files' | 'settings';
 
@@ -30,6 +32,13 @@ function AppContent() {
   const themeColors = useThemeStore((s) => s.colors);
   const insets = useSafeAreaInsets();
   useDropZone();
+  const { fcmToken } = useFCM();
+
+  useEffect(() => {
+    if (connected && fcmToken) {
+      api.updateMe({ fcmToken }).catch(console.error);
+    }
+  }, [connected, fcmToken]);
 
   const renderScreen = () => {
     switch (tab) {

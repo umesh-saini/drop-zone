@@ -22,6 +22,7 @@ const loginSchema = z.object({
 const updateSchema = z.object({
   deviceName: z.string().min(1).max(50).optional(),
   publicKey: z.string().min(1).optional(),
+  fcmToken: z.string().optional(),
 });
 
 /**
