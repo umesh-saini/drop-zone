@@ -15,22 +15,52 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       if (!secret) return;
 
       const plaintext = decrypt(JSON.parse(encryptedContent), secret);
-      
-      // Silently auto-copy to clipboard directly in the background
+
+      // Create a notification channel for Android
+      const channelId = await notifee.createChannel({
+        id: 'clipboard',
+        name: 'Clipboard Sync',
+        importance: AndroidImportance.HIGH,
+      });
+
+      // Display the local notification with decrypted text and a "Copy" button
+      await notifee.displayNotification({
+        title: `Clipboard from ${fromDeviceCode || 'a device'}`,
+        body: plaintext,
+        data: { textToCopy: plaintext },
+        android: {
+          channelId,
+          pressAction: { id: 'default' },
+          actions: [
+            { title: 'Copy', pressAction: { id: 'copy' } }
+          ],
+        },
+        ios: {
+          categoryId: 'clipboard',
+        }
+      });
+
+      // Auto-copy to clipboard if device allows background clipboard access
       try {
         await Clipboard.setStringAsync(plaintext);
-        
-        // Show a quick toast so the user knows it happened (Toast works in background on Android)
-        const { Platform, ToastAndroid } = require('react-native');
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Clipboard synced from DropZone', ToastAndroid.SHORT);
-        }
-      } catch (e) {
-        console.error('Background clipboard copy failed due to OS restrictions:', e);
-      }
+      } catch (e) { }
 
     } catch (e) {
       console.error('Failed to handle background clipboard push:', e);
+    }
+  }
+});
+
+// Background Notification Action Handler (when user presses "Copy" on the notification)
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  if (type === EventType.ACTION_PRESS && detail.pressAction?.id === 'copy') {
+    const textToCopy = detail.notification?.data?.textToCopy as string;
+    if (textToCopy) {
+      await Clipboard.setStringAsync(textToCopy);
+      // Cancel the notification after copying
+      if (detail.notification?.id) {
+        await notifee.cancelNotification(detail.notification.id);
+      }
     }
   }
 });

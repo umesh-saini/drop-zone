@@ -75,21 +75,21 @@ router.get('/:pairingId/peer-permissions', async (req: AuthRequest, res: Respons
   try {
     const pairingId = req.params.pairingId;
     const myDeviceCode = req.deviceCode!;
-    
+
     // Get the pairing to find the peer's device code
     const pairing = await Pairing.findById(pairingId);
     if (!pairing) {
       res.status(404).json({ error: 'Pairing not found' });
       return;
     }
-    
+
     if (pairing.deviceACode !== myDeviceCode && pairing.deviceBCode !== myDeviceCode) {
       res.status(403).json({ error: 'Not part of this pairing' });
       return;
     }
 
     const peerDeviceCode = pairing.deviceACode === myDeviceCode ? pairing.deviceBCode : pairing.deviceACode;
-    
+
     const permissions = await permissionService.getDevicePermissions(
       pairingId,
       peerDeviceCode
