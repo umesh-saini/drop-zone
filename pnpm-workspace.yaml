@@ -1,12 +1,11 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - apps/*
+  - packages/*
 
-# Supply-chain policy: minimumReleaseAge delays adoption of freshly published
-# packages to protect against compromised releases.
-# These browserslist data packages publish almost daily and are safe to exempt,
-# otherwise they constantly trip the age check and block installs.
 minimumReleaseAgeExclude:
   - baseline-browser-mapping
   - node-releases
   - caniuse-lite
+
+onlyBuiltDependencies:
+  - node-pty
