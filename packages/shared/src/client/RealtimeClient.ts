@@ -45,6 +45,10 @@ export interface RealtimeHandlers {
   onPermissionUpdate?: (data: { pairingId: string; updatedBy: string }) => void;
   onRemoteRequest?: (data: { fromDevice: string; request: any }) => void;
   onRemoteResponse?: (data: { fromDevice: string; response: any }) => void;
+  onPtyRequest?: (data: { fromDevice: string; pairingId: string }) => void;
+  onPtyData?: (data: { fromDevice: string; data: string }) => void;
+  onPtyResize?: (data: { fromDevice: string; cols: number; rows: number }) => void;
+  onPtyClose?: (data: { fromDevice: string }) => void;
   onError?: (data: { message: string }) => void;
 }
 
@@ -95,6 +99,11 @@ export class RealtimeClient {
 
     this.socket.on('remote:request', (data: any) => this.handlers.onRemoteRequest?.(data));
     this.socket.on('remote:response', (data: any) => this.handlers.onRemoteResponse?.(data));
+
+    this.socket.on('pty:request', (data: any) => this.handlers.onPtyRequest?.(data));
+    this.socket.on('pty:data', (data: any) => this.handlers.onPtyData?.(data));
+    this.socket.on('pty:resize', (data: any) => this.handlers.onPtyResize?.(data));
+    this.socket.on('pty:close', (data: any) => this.handlers.onPtyClose?.(data));
 
     this.socket.on('error', (data: any) => this.handlers.onError?.(data));
   }
@@ -149,6 +158,24 @@ export class RealtimeClient {
 
   sendRemoteResponse(toDevice: string, response: any): void {
     this.socket.emit('remote:response', { toDevice, response });
+  }
+
+  // --- PTY Terminal ---
+
+  sendPtyRequest(toDevice: string, pairingId: string): void {
+    this.socket.emit('pty:request', { toDevice, pairingId });
+  }
+
+  sendPtyData(toDevice: string, data: string): void {
+    this.socket.emit('pty:data', { toDevice, data });
+  }
+
+  sendPtyResize(toDevice: string, cols: number, rows: number): void {
+    this.socket.emit('pty:resize', { toDevice, cols, rows });
+  }
+
+  sendPtyClose(toDevice: string): void {
+    this.socket.emit('pty:close', { toDevice });
   }
 
   // --- Connection ---

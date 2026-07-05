@@ -2,6 +2,9 @@ import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { appTrayService } from './services/appTrayService.ts';
+import { updaterService } from './services/updaterService.ts';
+import { terminalService } from './services/terminalService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,15 +41,36 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  mainWindow.on('close', (e) => {
+    if (!appTrayService.isQuitting) {
+      e.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  
+  if (mainWindow) {
+    appTrayService.init(mainWindow);
+    updaterService.setWindow(mainWindow);
+    terminalService.init(mainWindow);
+  }
+  
+  updaterService.checkForUpdates();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  terminalService.cleanup();
 });
 
 app.on('activate', () => {

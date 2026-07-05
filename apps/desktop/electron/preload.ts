@@ -35,4 +35,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteFile: (filePath: string) => ipcRenderer.invoke('fs:delete', filePath),
   renameFile: (src: string, dest: string) => ipcRenderer.invoke('fs:rename', src, dest),
   getProperties: (filePath: string) => ipcRenderer.invoke('fs:getProperties', filePath),
+
+  // Tray menu syncing
+  updateTrayPermissions: (pairings: any[]) => ipcRenderer.send('tray:update-permissions', pairings),
+  onTogglePermission: (callback: (data: { pairingId: string; types: string[]; granted: boolean }) => void) => {
+    ipcRenderer.removeAllListeners('app:toggle-permission');
+    ipcRenderer.on('app:toggle-permission', (_event, data) => callback(data));
+  },
+
+  // Terminal (node-pty) HOST
+  startPty: (pairingId: string, cols: number, rows: number) => ipcRenderer.send('pty:start', { pairingId, cols, rows }),
+  writePty: (pairingId: string, data: string) => ipcRenderer.send('pty:data', { pairingId, data }),
+  resizePty: (pairingId: string, cols: number, rows: number) => ipcRenderer.send('pty:resize', { pairingId, cols, rows }),
+  closePty: (pairingId: string) => ipcRenderer.send('pty:close', { pairingId }),
+  onPtyDataOut: (callback: (data: { pairingId: string; data: string }) => void) => {
+    ipcRenderer.on('pty:data-out', (_event, data) => callback(data));
+  },
+  onPtyCloseOut: (callback: (data: { pairingId: string }) => void) => {
+    ipcRenderer.on('pty:close-out', (_event, data) => callback(data));
+  },
 });

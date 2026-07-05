@@ -52,3 +52,5 @@ coverage
 # Misc
 *.pem
 .cache
+.claude
+.agents

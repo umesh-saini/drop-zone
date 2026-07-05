@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clipboard, Send, FolderOpen, FilePenLine, Loader2 } from 'lucide-react';
+import { Clipboard, Send, FolderOpen, FilePenLine, Terminal, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -40,6 +40,13 @@ const PERMISSION_GROUPS = [
     description: 'Let this device edit or delete your files',
     icon: FilePenLine,
     types: ['file_access_write'],
+  },
+  {
+    key: 'terminal',
+    label: 'Remote Terminal',
+    description: 'Let this device execute commands via terminal',
+    icon: Terminal,
+    types: ['terminal_access'],
   },
 ] as const;
 

@@ -188,6 +188,43 @@ export function setupSocketHandlers(io: Server): void {
       });
     });
 
+    // PTY Terminal: request from browser to host
+    socket.on('pty:request', async (data: { toDevice: string; pairingId: string }) => {
+      const canAccess = await checkPairedPermission(deviceCode, data.toDevice, 'terminal_access');
+      if (!canAccess) {
+        socket.emit('error', { message: 'Terminal access permission denied' });
+        return;
+      }
+      io.to(`device:${data.toDevice}`).emit('pty:request', {
+        fromDevice: deviceCode,
+        pairingId: data.pairingId,
+      });
+    });
+
+    // PTY Terminal: data stream (bidirectional relay)
+    socket.on('pty:data', (data: { toDevice: string; data: string }) => {
+      io.to(`device:${data.toDevice}`).emit('pty:data', {
+        fromDevice: deviceCode,
+        data: data.data,
+      });
+    });
+
+    // PTY Terminal: resize event
+    socket.on('pty:resize', (data: { toDevice: string; cols: number; rows: number }) => {
+      io.to(`device:${data.toDevice}`).emit('pty:resize', {
+        fromDevice: deviceCode,
+        cols: data.cols,
+        rows: data.rows,
+      });
+    });
+
+    // PTY Terminal: close session
+    socket.on('pty:close', (data: { toDevice: string }) => {
+      io.to(`device:${data.toDevice}`).emit('pty:close', {
+        fromDevice: deviceCode,
+      });
+    });
+
     // Heartbeat / keep alive
     socket.on('heartbeat', async () => {
       await sessionService.updateSessionActivity(deviceCode);

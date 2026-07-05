@@ -13,30 +13,42 @@ async function generateIcons() {
   console.log(`🚀 Starting icon generation from ${SOURCE_LOGO}...`);
 
   try {
+    // Trim the source logo to remove excessive transparent padding
+    console.log('Trimming transparent padding from source logo...');
+    const trimmedLogoBuffer = await sharp(SOURCE_LOGO)
+      .trim()
+      .toBuffer();
+
     // ---------------------------------------------------------
     // 1. Desktop Icons (Electron)
     // ---------------------------------------------------------
     console.log('Generating Desktop icons...');
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(__dirname, '../apps/desktop/build/icon.png'));
+
+    console.log('Generating Desktop Tray icon...');
+    await sharp(trimmedLogoBuffer)
+      .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toFile(path.join(__dirname, '../apps/desktop/public/tray.png'));
 
     // ---------------------------------------------------------
     // 2. Web Icons (PWA)
     // ---------------------------------------------------------
     console.log('Generating Web icons...');
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(192, 192, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(__dirname, '../apps/web/public/logo192.png'));
 
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(__dirname, '../apps/web/public/logo512.png'));
       
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(128, 128, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(__dirname, '../apps/web/public/favicon.png'));
@@ -46,13 +58,13 @@ async function generateIcons() {
     // ---------------------------------------------------------
     console.log('Generating Mobile icons...');
     // Main Expo icon
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(__dirname, '../apps/mobile/assets/icon.png'));
 
     // Adaptive Foreground (scaled down to 80% to fit within Android's safe zone mask)
-    await sharp(SOURCE_LOGO)
+    await sharp(trimmedLogoBuffer)
       .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .extend({
         top: 112,
@@ -73,7 +85,7 @@ async function generateIcons() {
       `<svg><rect x="0" y="0" width="96" height="96" fill="#ffffff" /></svg>`
     );
     
-    const resizedSource = await sharp(SOURCE_LOGO)
+    const resizedSource = await sharp(trimmedLogoBuffer)
       .resize(96, 96, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .toBuffer();
 

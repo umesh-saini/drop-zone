@@ -75,6 +75,9 @@ export function useDropZone() {
             toast('A device was unpaired');
             syncPairedDevices();
           },
+          onPermissionUpdate: () => {
+            syncTrayPermissions().catch(console.error);
+          },
           onTransferProgress: (p) => {
             const existing = useAppStore
               .getState()
@@ -112,6 +115,22 @@ export function useDropZone() {
         // 4. Load paired devices + pending requests into store
         await syncPairedDevices();
         await syncPendingRequests();
+
+        // 5. Setup tray IPC listeners
+        if (window.electronAPI?.onTogglePermission) {
+          window.electronAPI.onTogglePermission(async (data) => {
+            try {
+              for (const type of data.types) {
+                await dropzone.api.updatePermission(data.pairingId, type, data.granted);
+              }
+              await syncTrayPermissions();
+            } catch (err) {
+              console.error('Failed to update permission from tray:', err);
+              toast.error('Failed to update permission');
+              await syncTrayPermissions(); // Revert toggle in tray
+            }
+          });
+        }
 
         store.setInitializing(false);
       } catch (err: any) {
@@ -178,6 +197,7 @@ export async function syncPairedDevices(): Promise<void> {
     }
   }
   store.setPairedDevices(devices);
+  syncTrayPermissions().catch(console.error);
 }
 
 /**
@@ -201,4 +221,45 @@ export async function syncPendingRequests(): Promise<void> {
     });
   }
   store.setPendingRequests(requests);
+}
+
+/** UI permission groups mapped to underlying permission types */
+const TRAY_PERMISSION_GROUPS = [
+  { label: 'Clipboard Sync', types: ['clipboard_read', 'clipboard_write'] },
+  { label: 'File Sharing', types: ['file_send', 'file_receive'] },
+  { label: 'Remote File Browsing', types: ['file_access_read'] },
+  { label: 'Remote File Editing', types: ['file_access_write'] },
+  { label: 'Remote Terminal', types: ['terminal_access'] },
+];
+
+/**
+ * Fetch permissions for all paired devices and send them to the main process
+ * to build the tray menu permissions dropdown.
+ */
+export async function syncTrayPermissions(): Promise<void> {
+  if (!window.electronAPI?.updateTrayPermissions) return;
+
+  const store = useAppStore.getState();
+  const trayData = [];
+  
+  for (const device of store.pairedDevices) {
+    const res = await dropzone.api.getPermissions(device.pairingId);
+    if (res.success && res.data) {
+      trayData.push({
+        pairingId: device.pairingId,
+        deviceName: device.deviceName,
+        permissions: TRAY_PERMISSION_GROUPS.map(group => {
+          // A group is granted if ALL of its underlying types are granted
+          const granted = group.types.every(t => res.data!.find(p => p.permissionType === t)?.granted);
+          return {
+            label: group.label,
+            types: group.types,
+            granted
+          };
+        })
+      });
+    }
+  }
+  
+  window.electronAPI.updateTrayPermissions(trayData);
 }

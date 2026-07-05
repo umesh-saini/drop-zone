@@ -36,6 +36,8 @@ export class DropZoneService {
   private pairingPeers = new Map<string, string>();
   // pairingId -> { permissionType: granted }
   private permissionsCache = new Map<string, Record<string, boolean>>();
+  // pairingIds where this device is currently HOSTING a terminal
+  private activeHostPairings = new Set<string>();
 
   // Event callbacks for the UI
   callbacks: {
@@ -55,6 +57,7 @@ export class DropZoneService {
       fileSize: number;
       fromDevice: string;
     }) => void;
+    onPtyDataReceived?: (fromDevice: string, data: string) => void;
   } = {};
 
   constructor() {
@@ -240,6 +243,36 @@ export class DropZoneService {
         // Response from a device we're browsing
         this.callbacks.onRemoteResponse?.(data.response);
       },
+      onPtyRequest: (data) => {
+        if (window.electronAPI?.startPty) {
+          this.activeHostPairings.add(data.pairingId);
+          window.electronAPI.startPty(data.pairingId, 80, 24);
+        }
+      },
+      onPtyData: (data) => {
+        const pairingId = this.findPairingForPeer(data.fromDevice);
+        if (!pairingId) return;
+        if (this.activeHostPairings.has(pairingId)) {
+          window.electronAPI?.writePty?.(pairingId, data.data);
+        } else {
+          this.callbacks.onPtyDataReceived?.(data.fromDevice, data.data);
+        }
+      },
+      onPtyResize: (data) => {
+        const pairingId = this.findPairingForPeer(data.fromDevice);
+        if (pairingId && this.activeHostPairings.has(pairingId)) {
+          window.electronAPI?.resizePty?.(pairingId, data.cols, data.rows);
+        }
+      },
+      onPtyClose: (data) => {
+        const pairingId = this.findPairingForPeer(data.fromDevice);
+        if (pairingId) {
+          if (this.activeHostPairings.has(pairingId)) {
+            window.electronAPI?.closePty?.(pairingId);
+            this.activeHostPairings.delete(pairingId);
+          }
+        }
+      },
       onError: (data) => console.error('[Socket] Error:', data.message),
     });
 
@@ -269,6 +302,23 @@ export class DropZoneService {
         }),
       sendComplete: (fileId, toDevice) => this.realtime?.completeFile(fileId, toDevice),
     });
+
+    // Setup PTY out listeners (only available in desktop host)
+    if (window.electronAPI?.onPtyDataOut) {
+      window.electronAPI.onPtyDataOut((data: { pairingId: string, data: string }) => {
+        const peerDeviceCode = this.pairingPeers.get(data.pairingId);
+        if (peerDeviceCode) {
+          this.realtime?.sendPtyData(peerDeviceCode, data.data);
+        }
+      });
+      window.electronAPI.onPtyCloseOut((data: { pairingId: string }) => {
+        const peerDeviceCode = this.pairingPeers.get(data.pairingId);
+        if (peerDeviceCode) {
+          this.realtime?.sendPtyClose(peerDeviceCode);
+        }
+        this.activeHostPairings.delete(data.pairingId);
+      });
+    }
 
     // Load pairings
     await this.refreshPairings();
@@ -495,6 +545,24 @@ export class DropZoneService {
    */
   sendRemoteRequest(toDevice: string, request: any): void {
     this.realtime?.sendRemoteRequest(toDevice, request);
+  }
+
+  // --- Terminal ---
+
+  startTerminalSession(toDevice: string, pairingId: string): void {
+    this.realtime?.sendPtyRequest(toDevice, pairingId);
+  }
+
+  sendTerminalData(toDevice: string, data: string): void {
+    this.realtime?.sendPtyData(toDevice, data);
+  }
+
+  resizeTerminalSession(toDevice: string, cols: number, rows: number): void {
+    this.realtime?.sendPtyResize(toDevice, cols, rows);
+  }
+
+  closeTerminalSession(toDevice: string): void {
+    this.realtime?.sendPtyClose(toDevice);
   }
 }
 
