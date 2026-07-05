@@ -45,7 +45,13 @@ export function FilesScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Files</Text>
-          <Text style={styles.subtitle}>Send, receive & browse</Text>
+          <Text style={styles.subtitle}>
+            {tab === 'browse'
+              ? browseTarget
+                ? `Browsing ${browseTarget.deviceName}`
+                : 'Send, receive & browse'
+              : 'Send, receive & browse'}
+          </Text>
         </View>
         {tab === 'transfers' && (
           <Button

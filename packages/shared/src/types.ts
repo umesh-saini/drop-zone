@@ -33,7 +33,8 @@ export type PermissionType =
   | "file_receive"
   | "file_access_read"
   | "file_access_write"
-  | "notification_mirror";
+  | "notification_mirror"
+  | "terminal_access";
 
 export type PermissionDirection = "a_to_b" | "b_to_a" | "bidirectional";
 

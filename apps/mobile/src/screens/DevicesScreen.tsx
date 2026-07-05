@@ -220,21 +220,23 @@ export function DevicesScreen() {
                   {fmt(d.deviceCode)} • {d.online ? 'Online' : 'Offline'}
                 </Text>
               </View>
-              <Pressable
-                hitSlop={8}
-                onPress={() => setPermFor({ pairingId: d.pairingId, name: d.deviceName })}
-                style={styles.unpairBtn}
-              >
-                <Ionicons name="options-outline" size={20} color={colors.mutedForeground} />
-              </Pressable>
-              <Pressable
-                hitSlop={8}
-                disabled={busy === d.pairingId}
-                onPress={() => confirmUnpair(d.pairingId, d.deviceName)}
-                style={styles.unpairBtn}
-              >
-                <Ionicons name="unlink-outline" size={20} color={colors.destructive} />
-              </Pressable>
+              <View style={styles.deviceActions}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setPermFor({ pairingId: d.pairingId, name: d.deviceName })}
+                  style={styles.unpairBtn}
+                >
+                  <Ionicons name="options-outline" size={20} color={colors.mutedForeground} />
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  disabled={busy === d.pairingId}
+                  onPress={() => confirmUnpair(d.pairingId, d.deviceName)}
+                  style={styles.unpairBtn}
+                >
+                  <Ionicons name="unlink-outline" size={20} color={colors.destructive} />
+                </Pressable>
+              </View>
             </Card>
           ))
         )}
@@ -370,6 +372,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: 'monospace',
   },
+  deviceActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
   pendingSection: { gap: spacing.sm },
   pendingLabel: {

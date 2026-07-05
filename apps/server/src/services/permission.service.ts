@@ -90,6 +90,7 @@ export async function createDefaultPermissions(
     { permissionType: 'file_access_read', granted: false },
     { permissionType: 'file_access_write', granted: false },
     { permissionType: 'notification_mirror', granted: false },
+    { permissionType: 'terminal_access', granted: false },
   ];
 
   const docs = [];

@@ -11,6 +11,7 @@ export const PERMISSION_TYPES = [
   "file_access_read",
   "file_access_write",
   "notification_mirror",
+  "terminal_access",
 ] as const;
 
 // Connection limits

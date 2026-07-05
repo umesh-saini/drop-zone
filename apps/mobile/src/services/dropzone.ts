@@ -42,7 +42,9 @@ class MobileDropZone {
     onPermissionUpdate?: (pairingId: string) => void;
     onTransferProgress?: (p: TransferProgress) => void;
     onFileSaved?: (fileName: string) => void;
+    onFileSaved?: (fileName: string) => void;
     onClipboardSent?: (content: string) => void;
+    onPtyDataReceived?: (fromDevice: string, data: string) => void;
   } = {};
 
   async initialize(): Promise<DeviceCredentials> {
@@ -145,6 +147,9 @@ class MobileDropZone {
     this.socket.on('remote:response', (d: any) => {
       const handler = this.remoteResponseHandlers.get(d.response?.requestId);
       if (handler) handler(d.response);
+    });
+    this.socket.on('pty:data', (d: any) => {
+      this.callbacks.onPtyDataReceived?.(d.fromDevice, d.data);
     });
     // Host: respond to remote file access requests from paired devices
     this.socket.on('remote:request', async (d: any) => {
@@ -406,6 +411,24 @@ class MobileDropZone {
 
       this.sendRemoteRequest(toDevice, fullReq);
     });
+  }
+
+  // --- Terminal ---
+
+  startTerminalSession(toDevice: string, pairingId: string): void {
+    this.socket?.emit('pty:request', { toDevice, pairingId });
+  }
+
+  sendTerminalData(toDevice: string, data: string): void {
+    this.socket?.emit('pty:data', { toDevice, data });
+  }
+
+  resizeTerminalSession(toDevice: string, cols: number, rows: number): void {
+    this.socket?.emit('pty:resize', { toDevice, cols, rows });
+  }
+
+  closeTerminalSession(toDevice: string): void {
+    this.socket?.emit('pty:close', { toDevice });
   }
 
   private startHeartbeat(): void {

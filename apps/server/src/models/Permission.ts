@@ -7,7 +7,8 @@ export type PermissionType =
   | 'file_receive'
   | 'file_access_read'
   | 'file_access_write'
-  | 'notification_mirror';
+  | 'notification_mirror'
+  | 'terminal_access';
 
 export interface IPermission extends Document {
   pairingId: mongoose.Types.ObjectId;
@@ -43,6 +44,7 @@ const PermissionSchema = new Schema<IPermission>(
         'file_access_read',
         'file_access_write',
         'notification_mirror',
+        'terminal_access',
       ],
     },
     ownerDevice: {

@@ -50,6 +50,12 @@ export const PERMISSION_DISPLAY: Record<
     description: 'Can see your notifications on their device',
     icon: 'bell',
   },
+  terminal_access: {
+    permissionType: 'terminal_access',
+    label: 'Remote Terminal',
+    description: 'Can execute commands on this device via remote shell',
+    icon: 'terminal',
+  },
 };
 
 /**
@@ -125,4 +131,5 @@ export const DEFAULT_PERMISSIONS = [
   { permissionType: 'file_access_read', direction: 'bidirectional', granted: false },
   { permissionType: 'file_access_write', direction: 'bidirectional', granted: false },
   { permissionType: 'notification_mirror', direction: 'bidirectional', granted: false },
+  { permissionType: 'terminal_access', direction: 'bidirectional', granted: false },
 ] as const;

@@ -32,6 +32,7 @@ export const permissionSchema = z.object({
     "file_access_read",
     "file_access_write",
     "notification_mirror",
+    "terminal_access",
   ]),
   direction: z.enum(["a_to_b", "b_to_a", "bidirectional"]),
   granted: z.boolean(),

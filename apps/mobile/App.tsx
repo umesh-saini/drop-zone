@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { DevicesScreen } from './src/screens/DevicesScreen';
 import { ClipboardScreen } from './src/screens/ClipboardScreen';
 import { FilesScreen } from './src/screens/FilesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { TerminalScreen } from './src/screens/TerminalScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { useThemeStore } from './src/theme/ThemeContext';
 import { colors, spacing, fontSize } from './src/theme';
@@ -17,12 +18,13 @@ import { GlobalTransferToast } from './src/components/GlobalTransferToast';
 import { api } from './src/services/api';
 import { useFCM } from './src/hooks/useFCM';
 
-type Tab = 'devices' | 'clipboard' | 'files' | 'settings';
+type Tab = 'devices' | 'clipboard' | 'files' | 'terminal' | 'settings';
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: 'devices', label: 'Devices', icon: 'phone-portrait-outline' },
   { id: 'clipboard', label: 'Clipboard', icon: 'clipboard-outline' },
   { id: 'files', label: 'Files', icon: 'folder-outline' },
+  { id: 'terminal', label: 'Terminal', icon: 'terminal-outline' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
 
@@ -34,23 +36,27 @@ function AppContent() {
   useDropZone();
   const { fcmToken } = useFCM();
 
+  const scrollViewRef = useRef<ScrollView>(null);
+  const screenWidth = Dimensions.get('window').width;
+
   useEffect(() => {
     if (connected && fcmToken) {
       api.updateMe({ fcmToken }).catch(console.error);
     }
   }, [connected, fcmToken]);
 
-  const renderScreen = () => {
-    switch (tab) {
-      case 'devices':
-        return <DevicesScreen />;
-      case 'clipboard':
-        return <ClipboardScreen />;
-      case 'files':
-        return <FilesScreen />;
-      case 'settings':
-        return <SettingsScreen />;
+  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / screenWidth);
+    const newTab = tabs[pageIndex]?.id;
+    if (newTab && newTab !== tab) {
+      setTab(newTab);
     }
+  };
+
+  const handleTabPress = (tId: Tab, index: number) => {
+    setTab(tId);
+    scrollViewRef.current?.scrollTo({ x: index * screenWidth, animated: true });
   };
 
   if (initializing) {
@@ -107,7 +113,27 @@ function AppContent() {
       <GlobalTransferToast />
 
       {/* Active screen */}
-      <View style={styles.screen}>{renderScreen()}</View>
+      <View style={styles.screen}>
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          scrollEventThrottle={16}
+          style={{ flex: 1 }}
+        >
+          {tabs.map((t) => (
+            <View key={t.id} style={{ width: screenWidth, flex: 1 }}>
+              {t.id === 'devices' && <DevicesScreen />}
+              {t.id === 'clipboard' && <ClipboardScreen />}
+              {t.id === 'files' && <FilesScreen />}
+              {t.id === 'terminal' && <TerminalScreen />}
+              {t.id === 'settings' && <SettingsScreen />}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Bottom tab bar — padded for the system navigation bar */}
       <View
@@ -123,7 +149,7 @@ function AppContent() {
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
-            <Pressable key={t.id} style={styles.tab} onPress={() => setTab(t.id)}>
+            <Pressable key={t.id} style={styles.tab} onPress={() => handleTabPress(t.id, tabs.indexOf(t))}>
               <Ionicons
                 name={t.icon}
                 size={22}

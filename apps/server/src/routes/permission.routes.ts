@@ -32,6 +32,7 @@ const permissionTypeEnum = z.enum([
   'file_access_read',
   'file_access_write',
   'notification_mirror',
+  'terminal_access',
 ]);
 
 const updatePermissionSchema = z.object({
