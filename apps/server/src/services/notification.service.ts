@@ -9,7 +9,7 @@ let firebaseInitialized = false;
 
 function initFirebase() {
   if (firebaseInitialized) return true;
-  
+
   try {
     const serviceAccountPath = path.resolve(process.cwd(), 'firebase-admin.json');
     if (fs.existsSync(serviceAccountPath)) {
@@ -46,7 +46,7 @@ export const notificationService = {
         android: { priority: 'high' },
         apns: { payload: { aps: { 'content-available': 1 } } }
       };
-      console.log('FCM Data notification data:', data);
+
       await getMessaging().send(message);
       console.log(`📨 FCM Data notification sent to device ${targetDeviceCode}`);
     } catch (err: any) {
