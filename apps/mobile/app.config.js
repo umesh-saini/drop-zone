@@ -1,4 +1,4 @@
-{
+export default {
   "expo": {
     "name": "DropZone",
     "slug": "mobile",
@@ -15,10 +15,8 @@
     "android": {
       "package": "com.umesh.dropzone",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "notification": {
         "icon": "./assets/notification-icon.png",
@@ -29,7 +27,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON || "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -59,4 +57,4 @@
       }
     }
   }
-}
+};

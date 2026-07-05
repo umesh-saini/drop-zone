@@ -298,12 +298,12 @@ async function handleClipboardSync(
       });
 
       if (!presence.isOnline(targetDevice)) {
-        await notificationService.sendNotification(
-          targetDevice,
-          'Clipboard Update Received',
-          `Tap to copy the text sent by ${fromDeviceCode}`,
-          { type: 'clipboard:update', text: data.content }
-        );
+        await notificationService.sendDataNotification(targetDevice, {
+          type: 'clipboard:update',
+          encryptedContent: data.content,
+          fromDeviceCode: fromDeviceCode,
+          pairingId: pairing._id.toString(),
+        });
       }
     }
   }

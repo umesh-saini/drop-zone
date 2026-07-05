@@ -33,9 +33,10 @@ export function useFCM() {
           }
         }
 
-        if (Platform.OS === 'android' && Platform.Version >= 33) {
-           await messaging().requestPermission();
-        }
+        const notifee = require('@notifee/react-native').default;
+        
+        // Request permissions using Notifee (works great on iOS and Android 13+)
+        await notifee.requestPermission();
 
         const token = await messaging().getToken();
         setFcmToken(token);
@@ -45,25 +46,22 @@ export function useFCM() {
         });
 
         unsubscribeMessage = messaging().onMessage(async (remoteMessage: any) => {
-          console.log('Foreground FCM Message:', JSON.stringify(remoteMessage));
+          // Socket handles clipboard when app is in foreground, so we just log this.
+          console.log('Foreground FCM Data Message:', JSON.stringify(remoteMessage));
         });
 
-        // Handle notification taps while the app is in the background
-        messaging().onNotificationOpenedApp(async (remoteMessage: any) => {
-          if (remoteMessage?.data?.type === 'clipboard:update' && remoteMessage?.data?.text) {
-            await Clipboard.setStringAsync(remoteMessage.data.text);
-            if (Platform.OS === 'android') {
-              ToastAndroid.show('Copied to clipboard!', ToastAndroid.SHORT);
-            }
-          }
-        });
-
-        // Handle notification taps that launch the app from a killed state
-        messaging().getInitialNotification().then(async (remoteMessage: any) => {
-          if (remoteMessage?.data?.type === 'clipboard:update' && remoteMessage?.data?.text) {
-            await Clipboard.setStringAsync(remoteMessage.data.text);
-            if (Platform.OS === 'android') {
-              ToastAndroid.show('Copied to clipboard!', ToastAndroid.SHORT);
+        // Handle lingering foreground notification interactions
+        notifee.onForegroundEvent(async ({ type, detail }: any) => {
+          if (type === 1 /* EventType.ACTION_PRESS */ && detail.pressAction?.id === 'copy') {
+            const textToCopy = detail.notification?.data?.textToCopy;
+            if (textToCopy) {
+              await Clipboard.setStringAsync(textToCopy);
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Copied to clipboard!', ToastAndroid.SHORT);
+              }
+              if (detail.notification?.id) {
+                await notifee.cancelNotification(detail.notification.id);
+              }
             }
           }
         });
