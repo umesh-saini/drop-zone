@@ -73,14 +73,18 @@ export async function loadDevices(myCode: string): Promise<void> {
     const info = await api.lookupDevice(peer);
     console.log('Device info:', info);
     if (info.success && info.data) {
-      // Check if peer granted us file_access_read
+      // Check if peer granted us file_access_read and file_receive
       let hasFileAccess = false;
+      let hasFileSend = false;
       try {
         const peerPerms = await api.getPeerPermissions(p.pairingId);
         console.log('Peer permissions:', peerPerms);
         if (peerPerms.success && peerPerms.data) {
           const fileReadPerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_access_read');
           if (fileReadPerm) hasFileAccess = fileReadPerm.granted;
+          
+          const fileReceivePerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_receive');
+          if (fileReceivePerm) hasFileSend = fileReceivePerm.granted;
         }
       } catch (err) {
         // ignore
@@ -93,6 +97,7 @@ export async function loadDevices(myCode: string): Promise<void> {
         deviceType: info.data.deviceType,
         online: false,
         hasFileAccess,
+        hasFileSend,
       });
     }
   }

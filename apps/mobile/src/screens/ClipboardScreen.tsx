@@ -10,7 +10,7 @@ import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
 
 export function ClipboardScreen() {
-  const { clips, clearClips } = useStore();
+  const { clips, clearClips, devices } = useStore();
   const [sending, setSending] = useState(false);
 
   const sendCurrent = async () => {
@@ -81,7 +81,7 @@ export function ClipboardScreen() {
                 </Text>
                 <View style={styles.itemMeta}>
                   <Text style={styles.itemTime}>{timeAgo(item.time)}</Text>
-                  {item.from && <Badge label={`from ${item.from.slice(0, 4)}`} variant="outline" />}
+                  {item.from && <Badge label={`from ${devices.find(d => d.deviceCode === item.from)?.deviceName || item.from.slice(0, 4)}`} variant="outline" />}
                 </View>
               </View>
               <Pressable hitSlop={8} onPress={() => Clipboard.setStringAsync(item.content)}>

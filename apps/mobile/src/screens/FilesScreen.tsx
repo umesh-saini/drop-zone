@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -21,17 +21,13 @@ export function FilesScreen() {
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState<'transfers' | 'browse'>('transfers');
   const [activeBrowseDevice, setActiveBrowseDevice] = useState<{ deviceCode: string; deviceName: string } | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
 
-  const handleSend = async () => {
-    const online = devices.filter((d) => d.online);
-    const target = online[0] || devices[0];
-    if (!target) {
-      Alert.alert('No paired device', 'Pair a device first to send files');
-      return;
-    }
+  const handleSend = async (targetDeviceCode: string) => {
+    setShowSendModal(false);
     setSending(true);
     try {
-      await dropzone.sendFile(target.deviceCode);
+      await dropzone.sendFile(targetDeviceCode);
     } catch (e: any) {
       Alert.alert('Send failed', e.message);
     } finally {
@@ -61,7 +57,13 @@ export function FilesScreen() {
               <Ionicons name="cloud-upload-outline" size={18} color={colors.primaryForeground} />
             }
             style={{ paddingHorizontal: spacing.md }}
-            onPress={handleSend}
+            onPress={() => {
+              if (devices.length === 0) {
+                Alert.alert('No paired device', 'Pair a device first to send files');
+                return;
+              }
+              setShowSendModal(true);
+            }}
           />
         )}
       </View>
@@ -204,6 +206,54 @@ export function FilesScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Send Device Selection Modal */}
+      <Modal visible={showSendModal} transparent animationType="slide" onRequestClose={() => setShowSendModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSendModal(false)}>
+          <View style={styles.actionSheet}>
+            <Text style={styles.sheetTitle}>Send file to...</Text>
+            <View style={styles.sheetDivider} />
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              {devices.map((d) => (
+                <Pressable
+                  key={d.pairingId}
+                  style={[styles.sheetItem, d.hasFileSend === false && { opacity: 0.5 }]}
+                  onPress={() => {
+                    if (d.hasFileSend !== false) {
+                      handleSend(d.deviceCode);
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name={d.deviceType === 'desktop' ? 'desktop-outline' : 'phone-portrait-outline'}
+                    size={22}
+                    color={colors.primary}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sheetText}>{d.deviceName}</Text>
+                    {d.hasFileSend === false && (
+                      <Text style={[styles.sheetText, { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 2 }]}>
+                        No permission to receive files
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons
+                    name={d.hasFileSend === false ? 'lock-closed-outline' : 'cloud-upload-outline'}
+                    size={20}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+            
+            <Pressable style={[styles.sheetItem, { borderBottomWidth: 0, justifyContent: 'center', marginTop: 10 }]} onPress={() => setShowSendModal(false)}>
+              <Text style={[styles.sheetText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -277,4 +327,41 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
   emptyTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
   emptyText: { fontSize: fontSize.sm, color: colors.mutedForeground, textAlign: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: 30,
+    paddingTop: 10,
+  },
+  sheetTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+  sheetDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 10,
+  },
+  sheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + '55',
+  },
+  sheetText: {
+    fontSize: fontSize.base,
+    color: colors.foreground,
+  },
 });
