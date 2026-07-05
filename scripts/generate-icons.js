@@ -57,13 +57,7 @@ async function generateIcons() {
     // 3. Mobile Icons (Expo)
     // ---------------------------------------------------------
     console.log('Generating Mobile icons...');
-    // Main Expo icon
-    await sharp(trimmedLogoBuffer)
-      .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toFile(path.join(__dirname, '../apps/mobile/assets/icon.png'));
-
-    // Adaptive Foreground (scaled down to 80% to fit within Android's safe zone mask)
+    // Main Expo icon (1024x1024 with standard padding)
     await sharp(trimmedLogoBuffer)
       .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .extend({
@@ -71,6 +65,19 @@ async function generateIcons() {
         bottom: 112,
         left: 112,
         right: 112,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      })
+      .png()
+      .toFile(path.join(__dirname, '../apps/mobile/assets/icon.png'));
+
+    // Adaptive Foreground (1080x1080 total, scaled down to 600x600 for safe-zone mask padding)
+    await sharp(trimmedLogoBuffer)
+      .resize(600, 600, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .extend({
+        top: 240,
+        bottom: 240,
+        left: 240,
+        right: 240,
         background: { r: 0, g: 0, b: 0, alpha: 0 }
       })
       .png()

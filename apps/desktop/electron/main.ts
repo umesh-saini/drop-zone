@@ -18,7 +18,7 @@ function createWindow() {
     minWidth: 700,
     minHeight: 500,
     title: 'DropZone',
-    icon: path.join(__dirname, '../public/favicon.svg'),
+    icon: path.join(__dirname, '../build/icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.ts'),
