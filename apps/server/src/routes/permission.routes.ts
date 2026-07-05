@@ -68,6 +68,49 @@ router.get('/:pairingId/permissions', async (req: AuthRequest, res: Response) =>
 });
 
 /**
+ * GET /api/pairings/:pairingId/peer-permissions
+ * Returns the permissions the OTHER device has granted to this device.
+ */
+router.get('/:pairingId/peer-permissions', async (req: AuthRequest, res: Response) => {
+  try {
+    const pairingId = req.params.pairingId;
+    const myDeviceCode = req.deviceCode!;
+    
+    // Get the pairing to find the peer's device code
+    const pairing = await Pairing.findById(pairingId);
+    if (!pairing) {
+      res.status(404).json({ error: 'Pairing not found' });
+      return;
+    }
+    
+    if (pairing.deviceACode !== myDeviceCode && pairing.deviceBCode !== myDeviceCode) {
+      res.status(403).json({ error: 'Not part of this pairing' });
+      return;
+    }
+
+    const peerDeviceCode = pairing.deviceACode === myDeviceCode ? pairing.deviceBCode : pairing.deviceACode;
+    
+    const permissions = await permissionService.getDevicePermissions(
+      pairingId,
+      peerDeviceCode
+    );
+
+    res.json({
+      success: true,
+      data: permissions.map((p) => ({
+        id: p._id,
+        permissionType: p.permissionType,
+        ownerDevice: p.ownerDevice,
+        granted: p.granted,
+        grantedAt: p.grantedAt,
+      })),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * PUT /api/pairings/:pairingId/permissions
  * Update a permission owned by the requesting device.
  */

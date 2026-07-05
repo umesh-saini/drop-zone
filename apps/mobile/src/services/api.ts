@@ -65,6 +65,7 @@ export const api = {
   rejectPairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/reject`),
   revokePairing: (pairingId: string) => request('POST', `/api/pairings/${pairingId}/revoke`),
   getPermissions: (pairingId: string) => request('GET', `/api/pairings/${pairingId}/permissions`),
+  getPeerPermissions: (pairingId: string) => request('GET', `/api/pairings/${pairingId}/peer-permissions`),
   updatePermission: (pairingId: string, permissionType: string, granted: boolean) =>
     request('PUT', `/api/pairings/${pairingId}/permissions`, {
       permissionType,

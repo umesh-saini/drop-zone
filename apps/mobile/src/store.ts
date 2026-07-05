@@ -6,6 +6,7 @@ export interface PairedDevice {
   deviceName: string;
   deviceType: 'desktop' | 'mobile' | 'web';
   online: boolean;
+  hasFileAccess?: boolean;
 }
 
 export interface ClipItem {

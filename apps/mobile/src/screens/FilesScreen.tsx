@@ -20,6 +20,7 @@ export function FilesScreen() {
   const { transfers, devices } = useStore();
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState<'transfers' | 'browse'>('transfers');
+  const [activeBrowseDevice, setActiveBrowseDevice] = useState<{ deviceCode: string; deviceName: string } | null>(null);
 
   const handleSend = async () => {
     const online = devices.filter((d) => d.online);
@@ -43,14 +44,14 @@ export function FilesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>Files</Text>
           <Text style={styles.subtitle}>
             {tab === 'browse'
-              ? browseTarget
-                ? `Browsing ${browseTarget.deviceName}`
-                : 'Send, receive & browse'
-              : 'Send, receive & browse'}
+              ? activeBrowseDevice
+                ? `Browsing ${activeBrowseDevice.deviceName}`
+                : 'Select device to browse'
+              : 'Send & receive files'}
           </Text>
         </View>
         {tab === 'transfers' && (
@@ -93,17 +94,62 @@ export function FilesScreen() {
       {/* Browse tab */}
       {tab === 'browse' && (
         <View style={{ flex: 1 }}>
-          {!browseTarget ? (
-            <View style={styles.empty}>
-              <Ionicons name="link-outline" size={40} color={colors.mutedForeground} />
-              <Text style={styles.emptyTitle}>No paired device</Text>
-              <Text style={styles.emptyText}>Pair a device to browse its files</Text>
-            </View>
+          {!activeBrowseDevice ? (
+            devices.length === 0 ? (
+              <View style={styles.empty}>
+                <Ionicons name="link-outline" size={40} color={colors.mutedForeground} />
+                <Text style={styles.emptyTitle}>No paired device</Text>
+                <Text style={styles.emptyText}>Pair a device to browse its files</Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+                {devices.map((d) => (
+                  <Pressable
+                    key={d.pairingId}
+                    onPress={() => {
+                      if (d.hasFileAccess !== false) {
+                        setActiveBrowseDevice({ deviceCode: d.deviceCode, deviceName: d.deviceName });
+                      }
+                    }}
+                  >
+                    <Card style={[styles.item, d.hasFileAccess === false && { opacity: 0.7 }]}>
+                      <View style={styles.row}>
+                        <View style={styles.iconBox}>
+                          <Ionicons
+                            name={d.deviceType === 'desktop' ? 'desktop-outline' : 'phone-portrait-outline'}
+                            size={20}
+                            color={colors.primary}
+                          />
+                        </View>
+                        <View style={styles.info}>
+                          <Text style={styles.name}>{d.deviceName}</Text>
+                          <Text style={styles.deviceCode}>
+                            {d.hasFileAccess === false ? 'No permission' : 'Browse files'}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={d.hasFileAccess === false ? 'lock-closed-outline' : 'chevron-forward'}
+                          size={20}
+                          color={colors.mutedForeground}
+                        />
+                      </View>
+                    </Card>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )
           ) : (
-            <RemoteExplorer
-              targetDevice={browseTarget.deviceCode}
-              targetDeviceName={browseTarget.deviceName}
-            />
+            <View style={{ flex: 1 }}>
+              <View style={styles.browseHeader}>
+                <Pressable onPress={() => setActiveBrowseDevice(null)} style={styles.backBtn} hitSlop={10}>
+                  <Ionicons name="chevron-back" size={24} color={colors.foreground} />
+                </Pressable>
+              </View>
+              <RemoteExplorer
+                targetDevice={activeBrowseDevice.deviceCode}
+                targetDeviceName={activeBrowseDevice.deviceName}
+              />
+            </View>
           )}
         </View>
       )}
@@ -132,7 +178,10 @@ export function FilesScreen() {
                     <Text style={styles.name} numberOfLines={1}>
                       {t.fileName}
                     </Text>
-                    <Text style={styles.size}>{formatSize(t.fileSize)}</Text>
+                    <Text style={styles.size}>
+                      {formatSize(t.fileSize)}
+                      {t.fromDevice ? ` • from ${devices.find(d => d.deviceCode === t.fromDevice)?.deviceName || t.fromDevice}` : ''}
+                    </Text>
                   </View>
                   <Badge
                     label={t.status === 'in_progress' ? `${t.progress}%` : t.status}
@@ -206,6 +255,18 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
   size: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 2 },
+  deviceCode: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 2 },
+  browseHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+  },
+  backBtn: {
+    padding: spacing.xs,
+    marginLeft: -spacing.xs,
+  },
   progressTrack: {
     height: 6,
     borderRadius: 3,

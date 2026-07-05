@@ -71,13 +71,28 @@ export async function loadDevices(myCode: string): Promise<void> {
   for (const p of pairings as PairingInfo[]) {
     const peer = p.deviceACode === myCode ? p.deviceBCode : p.deviceACode;
     const info = await api.lookupDevice(peer);
+    console.log('Device info:', info);
     if (info.success && info.data) {
+      // Check if peer granted us file_access_read
+      let hasFileAccess = false;
+      try {
+        const peerPerms = await api.getPeerPermissions(p.pairingId);
+        console.log('Peer permissions:', peerPerms);
+        if (peerPerms.success && peerPerms.data) {
+          const fileReadPerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_access_read');
+          if (fileReadPerm) hasFileAccess = fileReadPerm.granted;
+        }
+      } catch (err) {
+        // ignore
+      }
+
       devices.push({
         pairingId: p.pairingId,
         deviceCode: peer,
         deviceName: info.data.deviceName,
         deviceType: info.data.deviceType,
         online: false,
+        hasFileAccess,
       });
     }
   }
