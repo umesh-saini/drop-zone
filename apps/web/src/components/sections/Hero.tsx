@@ -1,53 +1,67 @@
-import { ArrowRight, Lock, Smartphone, Monitor } from 'lucide-react';
+import { ArrowRight, Monitor, Smartphone, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden px-6 py-24 md:py-32">
-      {/* Background glow */}
-      <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]" />
+    <section className="px-6 py-16 md:py-32">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-start lg:justify-between">
+        
+        {/* Text Content */}
+        <div className="flex max-w-2xl flex-col items-start pt-8">
+          <h1 className="mb-8 text-6xl font-black leading-[1.1] tracking-tight md:text-8xl">
+            Bridge your <br />
+            phone and <br />
+            computer.
+          </h1>
+          
+          <p className="mb-10 max-w-lg text-xl font-medium leading-relaxed md:text-2xl">
+            Real-time clipboard sync and seamless file sharing. Fast, local, and fully encrypted.
+          </p>
 
-      <div className="relative mx-auto max-w-4xl text-center">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm">
-          <Lock className="h-3.5 w-3.5 text-success" />
-          <span className="text-muted-foreground">End-to-end encrypted • Privacy first</span>
-        </div>
-
-        <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-6xl">
-          Bridge your phone and
-          <br />
-          computer, <span className="text-primary">instantly</span>
-        </h1>
-
-        <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-          Real-time clipboard sync, seamless file sharing, and remote file access across all your
-          devices. Works on Windows, Mac, Linux, Android, and iOS.
-        </p>
-
-        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button size="lg" className="gap-2">
+          <Button size="lg" className="h-16 rounded-xl border-2 border-border bg-foreground text-background shadow-brutal-lg hover-brutal px-8 text-xl font-bold">
             Download DropZone
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-          <Button size="lg" variant="outline">
-            Open Web App
+            <ArrowRight className="ml-3 h-6 w-6" />
           </Button>
         </div>
 
-        {/* Device illustration */}
-        <div className="mt-16 flex items-center justify-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border bg-card">
-            <Monitor className="h-8 w-8 text-foreground" />
+        {/* Illustration / Graphic */}
+        <div className="relative flex w-full max-w-md items-center justify-center p-8 lg:w-1/2 lg:p-0">
+          
+          {/* Main Abstract Graphic */}
+          <div className="relative aspect-square w-full rounded-full border-4 border-border bg-primary shadow-brutal-lg flex items-center justify-center overflow-hidden">
+             
+             {/* Decorative Background Elements inside circle */}
+             <div className="absolute top-10 left-10 h-32 w-32 rounded-full border-4 border-border bg-background" />
+             <div className="absolute bottom-20 right-10 h-24 w-24 border-4 border-border bg-success rotate-12" />
+             
+             {/* Center Graphic: Connected Devices */}
+             <div className="relative z-10 flex flex-col items-center gap-6">
+                <div className="flex h-32 w-48 items-center justify-center rounded-xl border-4 border-border bg-card shadow-brutal hover-brutal">
+                  <Monitor className="h-16 w-16" />
+                </div>
+                
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-border bg-accent z-20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Link className="h-6 w-6" />
+                </div>
+
+                <div className="flex h-24 w-16 items-center justify-center rounded-xl border-4 border-border bg-card shadow-brutal hover-brutal self-end mr-4 -mt-12">
+                  <Smartphone className="h-10 w-10" />
+                </div>
+             </div>
+
           </div>
-          <div className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:150ms]" />
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:300ms]" />
+          
+          {/* Floating Badges outside circle */}
+          <div className="absolute -left-6 top-12 flex items-center gap-2 rounded-full border-2 border-border bg-success px-4 py-2 font-bold shadow-brutal-sm rotate-[-10deg]">
+            <span className="text-xl">⚡</span> Instant
           </div>
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-primary/30 bg-card">
-            <Smartphone className="h-8 w-8 text-primary" />
+
+          <div className="absolute -right-4 bottom-24 flex items-center gap-2 rounded-xl border-2 border-border bg-card px-4 py-2 font-bold shadow-brutal rotate-[5deg]">
+            <span className="text-xl">🔒</span> Encrypted
           </div>
+
         </div>
+
       </div>
     </section>
   );
