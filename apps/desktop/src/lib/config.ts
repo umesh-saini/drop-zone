@@ -2,8 +2,8 @@
  * App configuration from environment variables.
  */
 export const config = {
-  serverUrl: import.meta.env.VITE_SERVER_URL || 'http://localhost:3001',
-  wsUrl: import.meta.env.VITE_WS_URL || 'http://localhost:3001',
+  serverUrl: import.meta.env.VITE_SERVER_URL || 'https://drop.devswitch.in',
+  wsUrl: import.meta.env.VITE_WS_URL || 'https://drop.devswitch.in',
   localModeEnabled: import.meta.env.VITE_LOCAL_MODE_ENABLED === 'true',
   localDiscoveryPort: parseInt(import.meta.env.VITE_LOCAL_DISCOVERY_PORT || '41234', 10),
   deviceType: 'desktop' as const,

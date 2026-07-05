@@ -11,6 +11,10 @@ import { setupSocketHandlers } from './socket';
 import { sessionService } from './services';
 
 const app = express();
+
+// Trust reverse proxy (Nginx, Cloudflare, etc.) to prevent express-rate-limit X-Forwarded-For crashes
+app.set('trust proxy', 1);
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -18,6 +22,15 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   },
+});
+
+// --- Global Error Handlers (Prevents Server Crashes) ---
+process.on('uncaughtException', (err) => {
+  console.error('💥 UNCAUGHT EXCEPTION! Shutting down gracefully if needed...', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 UNHANDLED REJECTION! Promise:', promise, 'Reason:', reason);
 });
 
 // --- Middleware ---
@@ -56,6 +69,15 @@ app.get('/health', (req, res) => {
 
 app.use('/api', apiRoutes);
 
+// --- Express Global Error Handler ---
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('🔥 Express Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Internal Server Error',
+  });
+});
+
 // --- Socket.io ---
 app.set('io', io);
 setupSocketHandlers(io);
@@ -63,9 +85,13 @@ setupSocketHandlers(io);
 // --- Session cleanup (every 5 minutes) ---
 setInterval(
   async () => {
-    const cleaned = await sessionService.cleanupStaleSessions();
-    if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
+    try {
+      const cleaned = await sessionService.cleanupStaleSessions();
+      if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
+      }
+    } catch (e) {
+      console.error('Error in session cleanup:', e);
     }
   },
   5 * 60 * 1000
