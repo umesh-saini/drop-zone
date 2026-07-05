@@ -76,6 +76,7 @@ export function useDropZone() {
             syncPairedDevices();
           },
           onPermissionUpdate: () => {
+            syncPairedDevices();
             syncTrayPermissions().catch(console.error);
           },
           onTransferProgress: (p) => {
@@ -184,6 +185,26 @@ export async function syncPairedDevices(): Promise<void> {
     const peerCode = p.deviceACode === myCode ? p.deviceBCode : p.deviceACode;
     const info = await dropzone.api.lookupDevice(peerCode);
     if (info.success && info.data) {
+      // Check if peer granted us file_access_read, file_receive, terminal_access
+      let hasFileAccess = false;
+      let hasFileSend = false;
+      let hasTerminalAccess = false;
+      try {
+        const peerPerms = await dropzone.api.getPeerPermissions(p.pairingId);
+        if (peerPerms.success && peerPerms.data) {
+          const fileReadPerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_access_read');
+          if (fileReadPerm) hasFileAccess = fileReadPerm.granted;
+          
+          const fileReceivePerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_receive');
+          if (fileReceivePerm) hasFileSend = fileReceivePerm.granted;
+          
+          const terminalPerm = peerPerms.data.find((perm: any) => perm.permissionType === 'terminal_access');
+          if (terminalPerm) hasTerminalAccess = terminalPerm.granted;
+        }
+      } catch (err) {
+        // ignore
+      }
+
       devices.push({
         pairingId: p.pairingId,
         deviceCode: peerCode,
@@ -193,6 +214,9 @@ export async function syncPairedDevices(): Promise<void> {
         isOnline: false,
         lastSeen: Date.now(),
         connectionMode: 'remote',
+        hasFileAccess,
+        hasFileSend,
+        hasTerminalAccess,
       });
     }
   }

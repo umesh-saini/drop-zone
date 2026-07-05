@@ -1,4 +1,4 @@
-import { Monitor, Clipboard, FolderOpen, Settings, Wifi, WifiOff, Zap } from 'lucide-react';
+import { Monitor, Clipboard, FolderOpen, Settings, Wifi, WifiOff, Zap, Terminal as TerminalIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AppView } from '@/stores/app.store';
 
@@ -6,6 +6,7 @@ const navItems: { id: AppView; label: string; icon: React.ComponentType<any> }[]
   { id: 'devices', label: 'Devices', icon: Monitor },
   { id: 'clipboard', label: 'Clipboard', icon: Clipboard },
   { id: 'files', label: 'Files', icon: FolderOpen },
+  { id: 'terminal', label: 'Terminal', icon: TerminalIcon },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

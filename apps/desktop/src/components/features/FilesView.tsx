@@ -1,9 +1,15 @@
-import { useState } from 'react';
-import { Upload, FileIcon, ArrowUpRight, ArrowDownLeft, X, FolderSearch } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, FileIcon, ArrowUpRight, ArrowDownLeft, X, FolderSearch, Monitor, Smartphone, Lock, ChevronRight, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAppStore } from '@/stores/app.store';
 import { dropzone } from '@/services/DropZoneService';
 import { RemoteExplorer } from './explorer/RemoteExplorer';
@@ -13,20 +19,28 @@ export function FilesView() {
   const { activeTransfers, removeTransfer, pairedDevices } = useAppStore();
   const [tab, setTab] = useState<'transfers' | 'browse'>('transfers');
   const [browseTarget, setBrowseTarget] = useState<string | null>(null);
+  const [showSendDialog, setShowSendDialog] = useState(false);
 
-  const handleSend = async () => {
-    const online = pairedDevices.filter((d) => d.isOnline);
-    const target = online[0] || pairedDevices[0];
-    if (!target) {
-      toast.error('No paired device', { description: 'Pair a device first' });
-      return;
+  // Live backoff if permission revoked
+  useEffect(() => {
+    if (browseTarget) {
+      const device = pairedDevices.find(d => d.deviceCode === browseTarget);
+      if (device && device.hasFileAccess === false) {
+        setBrowseTarget(null);
+        toast.error('Permission Revoked', { description: `${device.deviceName} revoked file access.` });
+      }
     }
+  }, [pairedDevices, browseTarget]);
+
+  const handleSend = async (targetDeviceCode: string) => {
+    setShowSendDialog(false);
     try {
-      await dropzone.sendFile(target.deviceCode);
+      await dropzone.sendFile(targetDeviceCode);
     } catch (err: any) {
       toast.error('Send failed', { description: err.message });
     }
   };
+
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -50,7 +64,13 @@ export function FilesView() {
           <p className="text-sm text-muted-foreground">Send, receive & browse remote files</p>
         </div>
         {tab === 'transfers' && (
-          <Button size="sm" className="gap-2" onClick={handleSend}>
+          <Button size="sm" className="gap-2" onClick={() => {
+            if (pairedDevices.length === 0) {
+              toast.error('No paired device', { description: 'Pair a device first' });
+              return;
+            }
+            setShowSendDialog(true);
+          }}>
             <Upload className="h-4 w-4" />
             Send File
           </Button>
@@ -71,10 +91,6 @@ export function FilesView() {
         <button
           onClick={() => {
             setTab('browse');
-            if (!browseTarget && pairedDevices.length > 0) {
-              const online = pairedDevices.find((d) => d.isOnline);
-              setBrowseTarget(online?.deviceCode || pairedDevices[0].deviceCode);
-            }
           }}
           className={cn(
             'flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
@@ -88,19 +104,61 @@ export function FilesView() {
 
       {/* Browse view */}
       {tab === 'browse' && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {pairedDevices.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               Pair a device to browse its files
             </p>
-          ) : browseTarget ? (
-            <RemoteExplorer
-              targetDevice={browseTarget}
-              targetDeviceName={
-                pairedDevices.find((d) => d.deviceCode === browseTarget)?.deviceName || browseTarget
-              }
-            />
-          ) : null}
+          ) : !browseTarget ? (
+            <div className="space-y-2">
+              {pairedDevices.map((d) => (
+                <button
+                  key={d.pairingId}
+                  onClick={() => {
+                    if (d.hasFileAccess !== false) {
+                      setBrowseTarget(d.deviceCode);
+                    }
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-3 rounded-lg border text-left transition-colors",
+                    d.hasFileAccess === false ? "opacity-60 cursor-not-allowed bg-muted/30" : "hover:bg-muted/50 cursor-pointer"
+                  )}
+                >
+                  <div className="h-10 w-10 flex items-center justify-center rounded-md bg-secondary">
+                    {d.deviceType === 'desktop' ? <Monitor className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{d.deviceName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {d.hasFileAccess === false ? 'No permission' : 'Browse files'}
+                    </div>
+                  </div>
+                  {d.hasFileAccess === false ? (
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col min-h-0">
+              <div className="mb-2">
+                <Button variant="ghost" size="sm" onClick={() => setBrowseTarget(null)} className="gap-1 -ml-2 text-muted-foreground">
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to devices
+                </Button>
+              </div>
+              <div className="flex-1 min-h-0">
+                <RemoteExplorer
+                  targetDevice={browseTarget}
+                  targetDeviceName={
+                    pairedDevices.find((d) => d.deviceCode === browseTarget)?.deviceName || browseTarget
+                  }
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -133,6 +191,12 @@ export function FilesView() {
                       <p className="text-sm font-medium truncate">{transfer.fileName}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{formatSize(transfer.fileSize)}</span>
+                        {transfer.fromDevice && (
+                          <>
+                            <span>•</span>
+                            <span>from {pairedDevices.find(d => d.deviceCode === transfer.fromDevice)?.deviceName || transfer.fromDevice}</span>
+                          </>
+                        )}
                         {transfer.status === 'in_progress' && (
                           <>
                             <span>•</span>
@@ -182,6 +246,48 @@ export function FilesView() {
           )}
         </div>
       )}
+
+      {/* Send Device Selection Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Send file to...</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-4 max-h-[300px] overflow-y-auto p-1">
+            {pairedDevices.map((d) => (
+              <button
+                key={d.pairingId}
+                onClick={() => {
+                  if (d.hasFileSend !== false) {
+                    handleSend(d.deviceCode);
+                  }
+                }}
+                className={cn(
+                  "w-full flex items-center gap-4 p-3 rounded-lg border text-left transition-colors",
+                  d.hasFileSend === false ? "opacity-60 cursor-not-allowed bg-muted/30" : "hover:bg-muted/50 cursor-pointer"
+                )}
+              >
+                <div className="h-10 w-10 flex items-center justify-center rounded-md bg-secondary">
+                  {d.deviceType === 'desktop' ? <Monitor className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">{d.deviceName}</div>
+                  {d.hasFileSend === false && (
+                    <div className="text-xs text-muted-foreground">
+                      No permission to receive files
+                    </div>
+                  )}
+                </div>
+                {d.hasFileSend === false ? (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

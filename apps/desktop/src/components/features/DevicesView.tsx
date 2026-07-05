@@ -26,7 +26,6 @@ import { useAppStore } from '@/stores/app.store';
 import { cn } from '@/lib/utils';
 import { PairingModal } from './PairingModal';
 import { PermissionsModal } from './PermissionsModal';
-import { TerminalModal } from './TerminalModal';
 import { dropzone } from '@/services/DropZoneService';
 import { syncPairedDevices, syncPendingRequests } from '@/hooks/useDropZone';
 
@@ -41,7 +40,6 @@ export function DevicesView() {
   const [pairingOpen, setPairingOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [permFor, setPermFor] = useState<{ pairingId: string; name: string } | null>(null);
-  const [termFor, setTermFor] = useState<{ pairingId: string; name: string; deviceCode: string } | null>(null);
 
   const handleAccept = async (pairingId: string) => {
     setBusy(pairingId);
@@ -91,13 +89,6 @@ export function DevicesView() {
         onClose={() => setPermFor(null)}
         pairingId={permFor?.pairingId ?? null}
         deviceName={permFor?.name ?? 'this device'}
-      />
-      <TerminalModal
-        open={!!termFor}
-        onClose={() => setTermFor(null)}
-        pairingId={termFor?.pairingId ?? null}
-        deviceName={termFor?.name ?? ''}
-        deviceCode={termFor?.deviceCode ?? null}
       />
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
@@ -243,15 +234,6 @@ export function DevicesView() {
                         >
                           <SlidersHorizontal className="h-4 w-4" />
                           Permissions
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setTermFor({ pairingId: device.pairingId, name: device.deviceName, deviceCode: device.deviceCode })
-                          }
-                          disabled={!device.isOnline || device.deviceType !== 'desktop'}
-                        >
-                          <Terminal className="h-4 w-4" />
-                          Terminal
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           destructive

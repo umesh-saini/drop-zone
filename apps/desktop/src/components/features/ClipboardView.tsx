@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { dropzone } from '@/services/DropZoneService';
 
 export function ClipboardView() {
-  const { clipboardHistory, clearClipboardHistory } = useAppStore();
+  const { clipboardHistory, clearClipboardHistory, pairedDevices } = useAppStore();
 
   const copyToClipboard = async (content: string) => {
     await navigator.clipboard.writeText(content);
@@ -87,7 +87,7 @@ export function ClipboardView() {
                     </span>
                     {item.source === 'remote' && item.fromDevice && (
                       <Badge variant="outline" className="text-[10px] py-0">
-                        from {item.fromDevice.slice(0, 4)}
+                        from {pairedDevices.find(d => d.deviceCode === item.fromDevice)?.deviceName || item.fromDevice.slice(0, 4)}
                       </Badge>
                     )}
                   </div>

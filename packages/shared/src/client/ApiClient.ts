@@ -139,6 +139,10 @@ export class ApiClient {
     return this.request('GET', `/api/pairings/${pairingId}/permissions`);
   }
 
+  async getPeerPermissions(pairingId: string): Promise<ApiResponse<PermissionInfo[]>> {
+    return this.request('GET', `/api/pairings/${pairingId}/peer-permissions`);
+  }
+
   async updatePermission(
     pairingId: string,
     permissionType: string,

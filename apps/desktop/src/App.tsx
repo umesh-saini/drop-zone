@@ -5,6 +5,7 @@ import { DevicesView } from '@/components/features/DevicesView';
 import { ClipboardView } from '@/components/features/ClipboardView';
 import { FilesView } from '@/components/features/FilesView';
 import { SettingsView } from '@/components/features/SettingsView';
+import { TerminalView } from '@/components/features/TerminalView';
 import { OnboardingScreen } from '@/components/features/OnboardingScreen';
 import { useAppStore } from '@/stores/app.store';
 import { useDropZone } from '@/hooks/useDropZone';
@@ -60,6 +61,8 @@ function App() {
         return <ClipboardView />;
       case 'files':
         return <FilesView />;
+      case 'terminal':
+        return <TerminalView />;
       case 'settings':
         return <SettingsView />;
       default:

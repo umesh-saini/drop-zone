@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppView = 'devices' | 'clipboard' | 'files' | 'settings';
+export type AppView = 'devices' | 'clipboard' | 'files' | 'terminal' | 'settings';
 
 interface AppState {
   // Navigation
@@ -54,6 +54,9 @@ export interface PairedDevice {
   isOnline: boolean;
   lastSeen: number;
   connectionMode: 'local' | 'remote';
+  hasFileAccess?: boolean;
+  hasFileSend?: boolean;
+  hasTerminalAccess?: boolean;
 }
 
 export interface PendingRequest {
