@@ -73,7 +73,7 @@ router.get('/:pairingId/permissions', async (req: AuthRequest, res: Response) =>
  */
 router.get('/:pairingId/peer-permissions', async (req: AuthRequest, res: Response) => {
   try {
-    const pairingId = req.params.pairingId;
+    const pairingId = req.params.pairingId as string;
     const myDeviceCode = req.deviceCode!;
 
     // Get the pairing to find the peer's device code
