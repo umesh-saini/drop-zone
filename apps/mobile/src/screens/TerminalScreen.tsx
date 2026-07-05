@@ -1,38 +1,60 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Card } from '../components/Card';
-import { Badge } from '../components/Badge';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { useStore } from '../store';
 import { dropzone } from '../services/dropzone';
+import { terminalHtml } from '../terminalHtml';
 
 export function TerminalScreen() {
   const { devices, deviceCode } = useStore();
-  const [activeDevice, setActiveDevice] = useState<{ pairingId: string; deviceCode: string; name: string } | null>(null);
+  const [activeDevice, setActiveDevice] = useState<{
+    pairingId: string;
+    deviceCode: string;
+    name: string;
+  } | null>(null);
+
+  // Use a ref for isReady so the PTY data handler always sees the current value
+  // without triggering a useEffect re-run (which would restart the session).
+  const isReadyRef = useRef(false);
+  const dataBuffer = useRef<string>('');
   const webViewRef = useRef<WebView>(null);
-  
-  // Filter only desktop devices (ignoring online status as per user request due to bug)
+
+  // Filter only desktop devices
   const desktopDevices = devices.filter((d) => d.deviceType === 'desktop');
 
-  // Handle incoming data from PTY socket to send to WebView
+  const writeToTerm = useCallback((data: string) => {
+    const escapedData = btoa(unescape(encodeURIComponent(data)));
+    webViewRef.current?.injectJavaScript(`
+      if (window.term) {
+        window.term.write(decodeURIComponent(escape(atob('${escapedData}'))));
+      }
+      true;
+    `);
+  }, []);
+
+  // Handle incoming PTY data → WebView. Only depends on activeDevice/deviceCode,
+  // NOT on isReady, so the session is never restarted when the WebView becomes ready.
   useEffect(() => {
     if (!activeDevice || !deviceCode) return;
+
+    // Reset ready state for each new device session
+    isReadyRef.current = false;
+    dataBuffer.current = '';
 
     dropzone.startTerminalSession(activeDevice.deviceCode, activeDevice.pairingId);
 
     const handleData = (fromDevice: string, data: string) => {
-      if (fromDevice === activeDevice.deviceCode) {
-        // Send data to WebView xterm instance
-        const escapedData = btoa(unescape(encodeURIComponent(data)));
-        webViewRef.current?.injectJavaScript(`
-          if (window.term) {
-            window.term.write(decodeURIComponent(escape(atob('${escapedData}'))));
-          }
-          true;
-        `);
+      if (fromDevice !== activeDevice.deviceCode) return;
+
+      if (!isReadyRef.current) {
+        // Buffer data until the WebView xterm instance is ready
+        dataBuffer.current += data;
+        return;
       }
+      writeToTerm(data);
     };
 
     dropzone.callbacks.onPtyDataReceived = handleData;
@@ -40,109 +62,50 @@ export function TerminalScreen() {
     return () => {
       dropzone.callbacks.onPtyDataReceived = undefined;
       dropzone.closeTerminalSession(activeDevice.deviceCode);
+      isReadyRef.current = false;
+      dataBuffer.current = '';
     };
-  }, [activeDevice, deviceCode]);
+  }, [activeDevice, deviceCode, writeToTerm]);
 
-  // Handle messages coming from the WebView (user typing)
-  const onMessage = (event: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'data' && activeDevice?.deviceCode) {
-        dropzone.sendTerminalData(activeDevice.deviceCode, msg.data);
-      } else if (msg.type === 'resize' && activeDevice?.deviceCode) {
-        dropzone.resizeTerminalSession(activeDevice.deviceCode, msg.cols, msg.rows);
+  // Handle messages coming from the WebView (user typing / ready signal)
+  const onMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const msg = JSON.parse(event.nativeEvent.data);
+
+        if (msg.type === 'ready') {
+          isReadyRef.current = true;
+
+          // Flush any data that arrived before the WebView was ready
+          if (dataBuffer.current.length > 0) {
+            writeToTerm(dataBuffer.current);
+            dataBuffer.current = '';
+          }
+        } else if (msg.type === 'data' && activeDevice?.deviceCode) {
+          dropzone.sendTerminalData(activeDevice.deviceCode, msg.data);
+        } else if (msg.type === 'resize' && activeDevice?.deviceCode) {
+          dropzone.resizeTerminalSession(activeDevice.deviceCode, msg.cols, msg.rows);
+        }
+      } catch (e) {
+        // ignore malformed messages
       }
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.3.0/css/xterm.css" />
-        <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.3.0/lib/xterm.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.8.0/lib/addon-fit.js"></script>
-        <style>
-          html, body {
-            margin: 0;
-            padding: 0;
-            background-color: #0a0a0a;
-            height: 100%;
-            overflow: hidden;
-          }
-          #terminal {
-            height: 100%;
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-          }
-        </style>
-      </head>
-      <body>
-        <div id="terminal">
-           <div id="loading" style="color: #666; padding: 20px; font-family: monospace;">Loading terminal engine...</div>
-        </div>
-        <script>
-          // Wait for external scripts to load if needed
-          window.onload = function() {
-            document.getElementById('loading').style.display = 'none';
-            var term = new window.Terminal({
-            theme: {
-              background: '#0a0a0a',
-              foreground: '#f3f4f6',
-              cursor: '#f3f4f6',
-              cursorAccent: '#0a0a0a',
-              selectionBackground: 'rgba(255, 255, 255, 0.3)',
-            },
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            fontSize: 14,
-            cursorBlink: true,
-            disableStdin: false
-          });
-          
-          var fitAddon = new window.FitAddon.FitAddon();
-          term.loadAddon(fitAddon);
-          term.open(document.getElementById('terminal'));
-          fitAddon.fit();
-
-          window.addEventListener('resize', () => {
-            fitAddon.fit();
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'resize',
-              cols: term.cols,
-              rows: term.rows
-            }));
-          });
-
-          term.onData(data => {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'data',
-              data: data
-            }));
-          });
-          
-          // Initial resize event
-          setTimeout(() => {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'resize',
-              cols: term.cols,
-              rows: term.rows
-            }));
-          }, 500);
-          };
-        </script>
-      </body>
-    </html>
-  `;
+    },
+    [activeDevice, writeToTerm]
+  );
 
   if (activeDevice) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => setActiveDevice(null)} style={styles.backBtn} hitSlop={10}>
+          <Pressable
+            onPress={() => {
+              isReadyRef.current = false;
+              dataBuffer.current = '';
+              setActiveDevice(null);
+            }}
+            style={styles.backBtn}
+            hitSlop={10}
+          >
             <Ionicons name="chevron-back" size={24} color={colors.foreground} />
           </Pressable>
           <View style={styles.headerTitle}>
@@ -154,8 +117,10 @@ export function TerminalScreen() {
 
         <WebView
           ref={webViewRef}
-          source={{ html: htmlContent }}
+          source={{ html: terminalHtml }}
           originWhitelist={['*']}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
           style={styles.webview}
           onMessage={onMessage}
           bounces={false}
@@ -189,7 +154,13 @@ export function TerminalScreen() {
           desktopDevices.map((d) => (
             <Pressable
               key={d.pairingId}
-              onPress={() => setActiveDevice({ pairingId: d.pairingId, deviceCode: d.deviceCode, name: d.deviceName })}
+              onPress={() =>
+                setActiveDevice({
+                  pairingId: d.pairingId,
+                  deviceCode: d.deviceCode,
+                  name: d.deviceName,
+                })
+              }
             >
               <Card style={styles.deviceCard}>
                 <View style={styles.iconWrap}>
@@ -205,9 +176,7 @@ export function TerminalScreen() {
                 </View>
                 <View style={styles.deviceInfo}>
                   <Text style={styles.deviceName}>{d.deviceName}</Text>
-                  <Text style={styles.deviceCode}>
-                    Connect to shell
-                  </Text>
+                  <Text style={styles.deviceCode}>Connect to shell</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
               </Card>
@@ -275,5 +244,5 @@ const styles = StyleSheet.create({
   webview: {
     flex: 1,
     backgroundColor: '#0a0a0a',
-  }
+  },
 });

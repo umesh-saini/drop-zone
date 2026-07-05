@@ -416,6 +416,9 @@ class MobileDropZone {
   // --- Terminal ---
 
   startTerminalSession(toDevice: string, pairingId: string): void {
+    console.log("Socket Id", this.socket?.id)
+    console.log("toDevice", toDevice)
+    console.log("pairingId", pairingId)
     this.socket?.emit('pty:request', { toDevice, pairingId });
   }
 

@@ -24,6 +24,8 @@
     "socket.io-client": "^4.8.3",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -35,7 +37,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:terminal-html": "node scripts/build-terminal-html.js"
   },
   "private": true
 }

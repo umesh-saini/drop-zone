@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,28 +36,11 @@ function AppContent() {
   useDropZone();
   const { fcmToken } = useFCM();
 
-  const scrollViewRef = useRef<ScrollView>(null);
-  const screenWidth = Dimensions.get('window').width;
-
   useEffect(() => {
     if (connected && fcmToken) {
       api.updateMe({ fcmToken }).catch(console.error);
     }
   }, [connected, fcmToken]);
-
-  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const pageIndex = Math.round(offsetX / screenWidth);
-    const newTab = tabs[pageIndex]?.id;
-    if (newTab && newTab !== tab) {
-      setTab(newTab);
-    }
-  };
-
-  const handleTabPress = (tId: Tab, index: number) => {
-    setTab(tId);
-    scrollViewRef.current?.scrollTo({ x: index * screenWidth, animated: true });
-  };
 
   if (initializing) {
     return (
@@ -112,30 +95,27 @@ function AppContent() {
       {/* Global Transfer Toast */}
       <GlobalTransferToast />
 
-      {/* Active screen */}
+      {/* Screens — all kept mounted so state (terminal session, scroll pos, etc.)
+          is preserved when switching tabs. Only the active one is visible. */}
       <View style={styles.screen}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          scrollEventThrottle={16}
-          style={{ flex: 1 }}
-        >
-          {tabs.map((t) => (
-            <View key={t.id} style={{ width: screenWidth, flex: 1 }}>
-              {t.id === 'devices' && <DevicesScreen />}
-              {t.id === 'clipboard' && <ClipboardScreen />}
-              {t.id === 'files' && <FilesScreen />}
-              {t.id === 'terminal' && <TerminalScreen />}
-              {t.id === 'settings' && <SettingsScreen />}
-            </View>
-          ))}
-        </ScrollView>
+        <View style={[styles.screenSlot, tab === 'devices' ? styles.visible : styles.hidden]}>
+          <DevicesScreen />
+        </View>
+        <View style={[styles.screenSlot, tab === 'clipboard' ? styles.visible : styles.hidden]}>
+          <ClipboardScreen />
+        </View>
+        <View style={[styles.screenSlot, tab === 'files' ? styles.visible : styles.hidden]}>
+          <FilesScreen />
+        </View>
+        <View style={[styles.screenSlot, tab === 'terminal' ? styles.visible : styles.hidden]}>
+          <TerminalScreen />
+        </View>
+        <View style={[styles.screenSlot, tab === 'settings' ? styles.visible : styles.hidden]}>
+          <SettingsScreen />
+        </View>
       </View>
 
-      {/* Bottom tab bar — padded for the system navigation bar */}
+      {/* Bottom tab bar */}
       <View
         style={[
           styles.tabBar,
@@ -149,7 +129,7 @@ function AppContent() {
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
-            <Pressable key={t.id} style={styles.tab} onPress={() => handleTabPress(t.id, tabs.indexOf(t))}>
+            <Pressable key={t.id} style={styles.tab} onPress={() => setTab(t.id)}>
               <Ionicons
                 name={t.icon}
                 size={22}
@@ -235,7 +215,21 @@ const styles = StyleSheet.create({
   connBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   connDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   connText: { fontSize: fontSize.sm, color: colors.success },
-  screen: { flex: 1 },
+  screen: { flex: 1, position: 'relative' },
+  // Each screen sits in the same slot; hidden ones are invisible and non-interactive
+  screenSlot: {
+    ...StyleSheet.absoluteFill,
+  },
+  visible: {
+    opacity: 1,
+    zIndex: 1,
+    pointerEvents: 'auto',
+  },
+  hidden: {
+    opacity: 0,
+    zIndex: 0,
+    pointerEvents: 'none',
+  },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
