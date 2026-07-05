@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Card } from '../components/Card';
@@ -93,6 +93,19 @@ export function TerminalScreen() {
     [activeDevice, writeToTerm]
   );
 
+  // Live backoff if permission is revoked while in a session
+  useEffect(() => {
+    if (activeDevice) {
+      const device = devices.find(d => d.deviceCode === activeDevice.deviceCode);
+      if (device && device.hasTerminalAccess === false) {
+        isReadyRef.current = false;
+        dataBuffer.current = '';
+        setActiveDevice(null);
+        Alert.alert('Permission Revoked', `${device.deviceName} has revoked your terminal access permission.`);
+      }
+    }
+  }, [devices, activeDevice]);
+
   if (activeDevice) {
     return (
       <View style={styles.container}>
@@ -154,15 +167,17 @@ export function TerminalScreen() {
           desktopDevices.map((d) => (
             <Pressable
               key={d.pairingId}
-              onPress={() =>
-                setActiveDevice({
-                  pairingId: d.pairingId,
-                  deviceCode: d.deviceCode,
-                  name: d.deviceName,
-                })
-              }
+              onPress={() => {
+                if (d.hasTerminalAccess !== false) {
+                  setActiveDevice({
+                    pairingId: d.pairingId,
+                    deviceCode: d.deviceCode,
+                    name: d.deviceName,
+                  });
+                }
+              }}
             >
-              <Card style={styles.deviceCard}>
+              <Card style={[styles.deviceCard, d.hasTerminalAccess === false && { opacity: 0.7 }]}>
                 <View style={styles.iconWrap}>
                   <View style={styles.iconBox}>
                     <Ionicons name="desktop-outline" size={22} color={colors.foreground} />
@@ -176,9 +191,15 @@ export function TerminalScreen() {
                 </View>
                 <View style={styles.deviceInfo}>
                   <Text style={styles.deviceName}>{d.deviceName}</Text>
-                  <Text style={styles.deviceCode}>Connect to shell</Text>
+                  <Text style={styles.deviceCode}>
+                    {d.hasTerminalAccess === false ? 'No permission' : 'Connect to shell'}
+                  </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                <Ionicons
+                  name={d.hasTerminalAccess === false ? 'lock-closed-outline' : 'chevron-forward'}
+                  size={20}
+                  color={colors.mutedForeground}
+                />
               </Card>
             </Pressable>
           ))

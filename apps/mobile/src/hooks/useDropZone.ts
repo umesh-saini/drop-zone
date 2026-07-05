@@ -33,6 +33,7 @@ export function useDropZone() {
           onPairingRequest: () => syncPending(),
           onPairingAccepted: () => loadDevices(creds.deviceCode),
           onPairingRevoked: () => loadDevices(creds.deviceCode),
+          onPermissionUpdate: () => loadDevices(creds.deviceCode),
           onTransferProgress: (p) =>
             store.upsertTransfer({
               fileId: p.fileId,
@@ -73,9 +74,10 @@ export async function loadDevices(myCode: string): Promise<void> {
     const info = await api.lookupDevice(peer);
     console.log('Device info:', info);
     if (info.success && info.data) {
-      // Check if peer granted us file_access_read and file_receive
+      // Check if peer granted us file_access_read, file_receive, terminal_access
       let hasFileAccess = false;
       let hasFileSend = false;
+      let hasTerminalAccess = false;
       try {
         const peerPerms = await api.getPeerPermissions(p.pairingId);
         console.log('Peer permissions:', peerPerms);
@@ -85,6 +87,9 @@ export async function loadDevices(myCode: string): Promise<void> {
           
           const fileReceivePerm = peerPerms.data.find((perm: any) => perm.permissionType === 'file_receive');
           if (fileReceivePerm) hasFileSend = fileReceivePerm.granted;
+          
+          const terminalPerm = peerPerms.data.find((perm: any) => perm.permissionType === 'terminal_access');
+          if (terminalPerm) hasTerminalAccess = terminalPerm.granted;
         }
       } catch (err) {
         // ignore
@@ -98,6 +103,7 @@ export async function loadDevices(myCode: string): Promise<void> {
         online: false,
         hasFileAccess,
         hasFileSend,
+        hasTerminalAccess,
       });
     }
   }

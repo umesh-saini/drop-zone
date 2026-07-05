@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
@@ -22,6 +22,17 @@ export function FilesScreen() {
   const [tab, setTab] = useState<'transfers' | 'browse'>('transfers');
   const [activeBrowseDevice, setActiveBrowseDevice] = useState<{ deviceCode: string; deviceName: string } | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
+
+  // Live backoff if permission is revoked while browsing
+  useEffect(() => {
+    if (activeBrowseDevice) {
+      const device = devices.find(d => d.deviceCode === activeBrowseDevice.deviceCode);
+      if (device && device.hasFileAccess === false) {
+        setActiveBrowseDevice(null);
+        Alert.alert('Permission Revoked', `${device.deviceName} has revoked your file access permission.`);
+      }
+    }
+  }, [devices, activeBrowseDevice]);
 
   const handleSend = async (targetDeviceCode: string) => {
     setShowSendModal(false);

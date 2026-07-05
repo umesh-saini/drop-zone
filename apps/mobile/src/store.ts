@@ -8,6 +8,7 @@ export interface PairedDevice {
   online: boolean;
   hasFileAccess?: boolean;
   hasFileSend?: boolean;
+  hasTerminalAccess?: boolean;
 }
 
 export interface ClipItem {
